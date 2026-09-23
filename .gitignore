@@ -14,8 +14,6 @@ app_data.db
 __pycache__/
 *.pyc
 
-# Local Test Screenshots / Images (Optional - ignore if you don't want them on GitHub)
-*.png
 
 # Streamlit Local Cache/Settings (Optional)
 .streamlit/secrets.toml
