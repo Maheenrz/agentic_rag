@@ -1,0 +1,21 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Secrets & Local Environment Variables
+.env
+
+# Vector Database & Local Data Storage
+chroma_store/
+app_data.db
+
+# Python Caches
+__pycache__/
+*.pyc
+
+# Local Test Screenshots / Images (Optional - ignore if you don't want them on GitHub)
+*.png
+
+# Streamlit Local Cache/Settings (Optional)
+.streamlit/secrets.toml
