@@ -1,1 +1,19 @@
 .env
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.db
+i.db
+app_data.db
+chroma/
+chroma_t/
+chroma_store/
+node_modules/
+dist/
+.DS_Store
+# Keep out if it contains real company documents
+data/
+results/
+*.jsonl
+*.csv
