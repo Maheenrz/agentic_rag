@@ -100,11 +100,16 @@ def _validate_new_credentials(username: str, password: str) -> None:
 app = FastAPI(title="Private Docs Assistant API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=[
+        "https://frontendagentic-n5bnld82y-mahheen508-gmailcoms-projects.vercel.app", # Your exact Vercel URL
+        "http://localhost:5173", # For local development
+        "http://localhost:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 
 # ------------------------------------------------------------------ models
