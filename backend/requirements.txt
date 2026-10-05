@@ -15,3 +15,5 @@ scikit_learn
 sentence_transformers
 streamlit
 rank-bm25
+openpyxl
+python-docx
