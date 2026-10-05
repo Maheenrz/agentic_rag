@@ -12,10 +12,17 @@ Thumbs up / thumbs down on an assistant answer.
 
 import sqlite3
 import time
+import os
+from pathlib import Path
 from contextlib import contextmanager
 from typing import Optional
 
 from app.config import SQLITE_DB_PATH
+
+# Ensure the parent directory (e.g., ./data) exists before connecting
+db_dir = os.path.dirname(SQLITE_DB_PATH)
+if db_dir and not os.path.exists(db_dir):
+    os.makedirs(db_dir, exist_ok=True)
 
 REASONS = ("wrong_answer", "missing_info", "bad_citation", "not_helpful", "other")
 
@@ -29,7 +36,6 @@ def _connect():
         conn.commit()
     finally:
         conn.close()
-
 
 def _init_db() -> None:
     with _connect() as conn:

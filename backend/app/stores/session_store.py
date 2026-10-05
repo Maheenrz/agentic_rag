@@ -13,10 +13,17 @@ import json
 import sqlite3
 import time
 import uuid
+import os
+from pathlib import Path
 from contextlib import contextmanager
 from typing import Optional
 
 from app.config import SQLITE_DB_PATH, logger
+
+
+db_dir = os.path.dirname(SQLITE_DB_PATH)
+if db_dir and not os.path.exists(db_dir):
+    os.makedirs(db_dir, exist_ok=True)
 
 
 @contextmanager

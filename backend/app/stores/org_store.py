@@ -20,10 +20,17 @@ import json
 import sqlite3
 import time
 import uuid
+import os
+from pathlib import Path
 from contextlib import contextmanager
 from typing import Optional
 
 from app.config import SQLITE_DB_PATH, logger
+
+# Ensure the parent directory (e.g., ./data) exists before connecting
+db_dir = os.path.dirname(SQLITE_DB_PATH)
+if db_dir and not os.path.exists(db_dir):
+    os.makedirs(db_dir, exist_ok=True)
 
 
 @contextmanager
@@ -36,7 +43,7 @@ def _connect():
     finally:
         conn.close()
 
-
+        
 def _init_db() -> None:
     with _connect() as conn:
         conn.executescript("""
