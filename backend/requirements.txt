@@ -17,3 +17,5 @@ streamlit
 rank-bm25
 openpyxl
 python-docx
+langgraph
+langgraph-checkpoint-sqlite
