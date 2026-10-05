@@ -217,3 +217,13 @@ lucky reproduction to notice it at all.
 - No automated test suite.
 - Single-user local persistence (SQLite, Chroma on local disk) — not designed for concurrent
   multi-user deployment as-is.
+
+
+
+
+
+Old (24 + 6 q)	New (5 + 5 q)
+Judge CORRECT	83.3%	80% (4/5)
+Wrongly refused	2	0
+Correct refusals	100%	100%
+Avg latency	21.1s	8.2s  

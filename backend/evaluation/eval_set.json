@@ -1,0 +1,537 @@
+{
+  "source_pdf": "EN-Ethical_Hacking.pdf (578-page EC-Council CEH v3 slide deck; page = PDF page number)",
+  "how_to_use": "qa: end-to-end + retrieval eval. cache_tests / recall_tests: pipeline behaviour tests. grader_tests / faithfulness_tests: component tests.",
+  "qa": [
+    {
+      "id": "Q01",
+      "category": "list",
+      "question": "What are the five phases a malicious hacker goes through?",
+      "answerable": true,
+      "gold_answer": "Reconnaissance, Scanning, Gaining Access, Maintaining Access, Covering Tracks.",
+      "gold_pages": [
+        18
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval"
+    },
+    {
+      "id": "Q02",
+      "category": "definition",
+      "question": "What is the difference between a cracker and an ethical hacker?",
+      "answerable": true,
+      "gold_answer": "A cracker uses hacking skills for offensive purposes; an ethical hacker is a security professional who applies hacking skills for defensive purposes.",
+      "gold_pages": [
+        15
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval"
+    },
+    {
+      "id": "Q03",
+      "category": "list",
+      "question": "What are the four elements that security rests on?",
+      "answerable": true,
+      "gold_answer": "Confidentiality, authenticity, integrity and availability.",
+      "gold_pages": [
+        17
+      ],
+      "hard_negative_pages": [
+        16
+      ],
+      "tests": "retrieval,faithfulness"
+    },
+    {
+      "id": "Q04",
+      "category": "definition",
+      "question": "What is footprinting?",
+      "answerable": true,
+      "gold_answer": "The blueprinting of the security profile of an organization, undertaken in a methodological manner.",
+      "gold_pages": [
+        54
+      ],
+      "hard_negative_pages": [
+        53
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q05",
+      "category": "list",
+      "question": "Which three phases are called the pre-attack phases?",
+      "answerable": true,
+      "gold_answer": "Footprinting, scanning and enumeration.",
+      "gold_pages": [
+        54
+      ],
+      "hard_negative_pages": [
+        55,
+        76
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q06",
+      "category": "explain",
+      "question": "How does traceroute work?",
+      "answerable": true,
+      "gold_answer": "It exploits the IP Time To Live (TTL) field: it sends consecutive UDP packets with increasing TTLs; each router decrements TTL and when it hits zero returns an ICMP 'TTL exceeded' message, revealing the path.",
+      "gold_pages": [
+        63
+      ],
+      "hard_negative_pages": [
+        60,
+        61
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q07",
+      "category": "list",
+      "question": "What are the three steps of the TCP three-way handshake?",
+      "answerable": true,
+      "gold_answer": "Client sends SYN; server replies SYN/ACK; client sends ACK.",
+      "gold_pages": [
+        85,
+        299
+      ],
+      "hard_negative_pages": [
+        86,
+        87
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q08",
+      "category": "confusable",
+      "question": "How is passive fingerprinting different from active stack fingerprinting?",
+      "answerable": true,
+      "gold_answer": "Active fingerprinting sends specially crafted packets to the target and compares responses to a database; passive fingerprinting captures packets from the target and studies them for telltale signs, and is less accurate.",
+      "gold_pages": [
+        92,
+        93
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval,rerank,multi-page"
+    },
+    {
+      "id": "Q09",
+      "category": "fact",
+      "question": "Which ports must a null session have access to?",
+      "answerable": true,
+      "gold_answer": "TCP 139 and/or TCP 445.",
+      "gold_pages": [
+        106
+      ],
+      "hard_negative_pages": [
+        104,
+        105
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q10",
+      "category": "fact",
+      "question": "How can you prevent SNMP enumeration?",
+      "answerable": true,
+      "gold_answer": "Remove the SNMP agent or turn off the SNMP service; if that is not possible, change the default 'public' community name (and apply the group policy restriction).",
+      "gold_pages": [
+        113
+      ],
+      "hard_negative_pages": [
+        110
+      ],
+      "tests": "retrieval"
+    },
+    {
+      "id": "Q11",
+      "category": "list",
+      "question": "What are the three classes of denial of service attacks?",
+      "answerable": true,
+      "gold_answer": "Bandwidth attacks, protocol attacks and logic attacks.",
+      "gold_pages": [
+        255
+      ],
+      "hard_negative_pages": [
+        254,
+        256
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q12",
+      "category": "confusable",
+      "question": "What is a Smurf attack?",
+      "answerable": true,
+      "gold_answer": "A DoS attack using forged ICMP echo requests with a spoofed source address sent to an IP broadcast address, so every machine on the network replies to the victim.",
+      "gold_pages": [
+        260
+      ],
+      "hard_negative_pages": [
+        259,
+        261
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q13",
+      "category": "confusable",
+      "question": "How does a SYN flood attack overwhelm its target?",
+      "answerable": true,
+      "gold_answer": "It floods the target with SYN packets; the target answers each with SYN-ACK and queues them in a backlog queue while waiting for ACKs that never come, exhausting the queue.",
+      "gold_pages": [
+        261
+      ],
+      "hard_negative_pages": [
+        85,
+        260
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q14",
+      "category": "confusable",
+      "question": "Which ports does Trinoo use?",
+      "answerable": true,
+      "gold_answer": "Attacker to master 27665/tcp; master to daemon 27444/udp; daemon to master 31335/udp.",
+      "gold_pages": [
+        269
+      ],
+      "hard_negative_pages": [
+        268,
+        272
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q15",
+      "category": "confusable",
+      "question": "What does Stacheldraht add compared with TFN and Trinoo?",
+      "answerable": true,
+      "gold_answer": "It combines features of TFN and Trinoo and adds an encryption layer between daemons.",
+      "gold_pages": [
+        272
+      ],
+      "hard_negative_pages": [
+        268,
+        270
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q16",
+      "category": "confusable",
+      "question": "What is reverse social engineering?",
+      "answerable": true,
+      "gold_answer": "The hacker creates a persona in a position of authority so that employees come to him asking for information, rather than the hacker asking them.",
+      "gold_pages": [
+        288
+      ],
+      "hard_negative_pages": [
+        280,
+        281
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q17",
+      "category": "confusable",
+      "question": "How does session hijacking differ from spoofing?",
+      "answerable": true,
+      "gold_answer": "In spoofing the attacker pretends to be another user or machine without taking anyone offline; in hijacking the attacker takes over an existing session after the legitimate user connects and authenticates.",
+      "gold_pages": [
+        295,
+        296
+      ],
+      "hard_negative_pages": [
+        298
+      ],
+      "tests": "retrieval,rerank,multi-page"
+    },
+    {
+      "id": "Q18",
+      "category": "fact",
+      "question": "What is the difference between active and passive session hijacking?",
+      "answerable": true,
+      "gold_answer": "Active: the attacker finds an active session and takes it over. Passive: the attacker hijacks the session but sits back and records the traffic.",
+      "gold_pages": [
+        298
+      ],
+      "hard_negative_pages": [
+        295,
+        296
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q19",
+      "category": "list",
+      "question": "How can you protect against session hijacking?",
+      "answerable": true,
+      "gold_answer": "Use encryption, use a secure protocol, limit incoming connections, minimize remote access, have strong authentication.",
+      "gold_pages": [
+        309
+      ],
+      "hard_negative_pages": [
+        308
+      ],
+      "tests": "retrieval"
+    },
+    {
+      "id": "Q20",
+      "category": "fact",
+      "question": "Which SQL command can be injected through a login form to shut down SQL Server?",
+      "answerable": true,
+      "gold_answer": "SHUTDOWN WITH NOWAIT (e.g. Username: ' ; shutdown with nowait; --).",
+      "gold_pages": [
+        394
+      ],
+      "hard_negative_pages": [
+        395
+      ],
+      "tests": "retrieval"
+    },
+    {
+      "id": "Q21",
+      "category": "list",
+      "question": "What preventive measures does the material give against SQL injection?",
+      "answerable": true,
+      "gold_answer": "Minimize privileges of the DB connection, disable verbose error messages, protect the 'sa' account, audit source code (escape single quotes, allow only good input, reject known bad input, restrict input length).",
+      "gold_pages": [
+        402
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval"
+    },
+    {
+      "id": "Q22",
+      "category": "fact",
+      "question": "What two things do buffer overflow attacks depend on?",
+      "answerable": true,
+      "gold_answer": "The lack of boundary testing and a machine that can execute code residing in the data/stack segment.",
+      "gold_pages": [
+        527
+      ],
+      "hard_negative_pages": [
+        526,
+        528
+      ],
+      "tests": "retrieval"
+    },
+    {
+      "id": "Q23",
+      "category": "multi-page",
+      "question": "Compare the message digest sizes of MD5 and SHA.",
+      "answerable": true,
+      "gold_answer": "MD5 produces a 128-bit digest; SHA produces a 160-bit digest, is slightly slower, but the larger digest resists brute-force collision and inversion attacks better.",
+      "gold_pages": [
+        551,
+        552
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval,multi-page,faithfulness"
+    },
+    {
+      "id": "Q24",
+      "category": "confusable",
+      "question": "Under Section 1029, what is the maximum imprisonment for a first offense under paragraphs (4), (5), (8) or (9) of subsection (a)?",
+      "answerable": true,
+      "gold_answer": "Not more than 15 years (10 years for paragraphs 1, 2, 3, 6, 7, 10).",
+      "gold_pages": [
+        38
+      ],
+      "hard_negative_pages": [
+        45,
+        46,
+        47,
+        48
+      ],
+      "tests": "retrieval,rerank"
+    },
+    {
+      "id": "Q25",
+      "category": "unanswerable",
+      "question": "What is ransomware and how does it encrypt a victim's files?",
+      "answerable": false,
+      "gold_answer": "I couldn't find that information in the uploaded documents.",
+      "gold_pages": [],
+      "hard_negative_pages": [],
+      "tests": "grader,rewrite-loop,no-answer,hallucination"
+    },
+    {
+      "id": "Q26",
+      "category": "unanswerable",
+      "question": "How do I defend my company against phishing emails?",
+      "answerable": false,
+      "gold_answer": "I couldn't find that information in the uploaded documents.",
+      "gold_pages": [],
+      "hard_negative_pages": [],
+      "tests": "grader,rewrite-loop,no-answer,hallucination"
+    },
+    {
+      "id": "Q27",
+      "category": "unanswerable",
+      "question": "What is the output size of SHA-256?",
+      "answerable": false,
+      "gold_answer": "I couldn't find that information in the uploaded documents.",
+      "gold_pages": [],
+      "hard_negative_pages": [],
+      "tests": "grader,rewrite-loop,no-answer,hallucination"
+    },
+    {
+      "id": "Q28",
+      "category": "unanswerable",
+      "question": "What does AES stand for and how many rounds does it use?",
+      "answerable": false,
+      "gold_answer": "I couldn't find that information in the uploaded documents.",
+      "gold_pages": [],
+      "hard_negative_pages": [],
+      "tests": "grader,rewrite-loop,no-answer,hallucination"
+    },
+    {
+      "id": "Q29",
+      "category": "unanswerable",
+      "question": "How do I use Metasploit to exploit a vulnerable service?",
+      "answerable": false,
+      "gold_answer": "I couldn't find that information in the uploaded documents.",
+      "gold_pages": [],
+      "hard_negative_pages": [],
+      "tests": "grader,rewrite-loop,no-answer,hallucination"
+    },
+    {
+      "id": "Q30",
+      "category": "unanswerable",
+      "question": "What is the CVSS score of the Log4Shell vulnerability?",
+      "answerable": false,
+      "gold_answer": "I couldn't find that information in the uploaded documents.",
+      "gold_pages": [],
+      "hard_negative_pages": [],
+      "tests": "grader,rewrite-loop,no-answer,hallucination"
+    }
+  ],
+  "cache_tests": [
+    {
+      "id": "C1",
+      "setup_question": "What is a Smurf attack?",
+      "test_question": "What is a Smurf attack?",
+      "expect": "HIT",
+      "why": "exact repeat must hit"
+    },
+    {
+      "id": "C2",
+      "setup_question": "What is a Smurf attack?",
+      "test_question": "Can you explain what a Smurf attack is?",
+      "expect": "HIT or MISS (record similarity)",
+      "why": "paraphrase; threshold 0.93 may be too strict; log the score"
+    },
+    {
+      "id": "C3",
+      "setup_question": "What is a Smurf attack?",
+      "test_question": "What is the Land exploit?",
+      "expect": "MISS",
+      "why": "similar wording, different answer - a HIT here is a critical bug"
+    },
+    {
+      "id": "C4",
+      "setup_question": "Which ports does Trinoo use?",
+      "test_question": "Which ports does Stacheldraht use?",
+      "expect": "MISS",
+      "why": "same template, different entity"
+    },
+    {
+      "id": "C5",
+      "setup_question": "What is a Smurf attack?",
+      "test_question": "What is a Smurf attack?",
+      "expect": "MISS in a DIFFERENT thread",
+      "why": "cache is thread-scoped"
+    }
+  ],
+  "recall_tests": [
+    {
+      "id": "R1",
+      "script": "User A, thread 1: ask Q17 and Q18 (session hijacking). Click New conversation (finalize). Thread 2: 'What did we discuss in my previous chat?'",
+      "expect": "Answer mentions session hijacking / spoofing; sources tool = Conversation Memory"
+    },
+    {
+      "id": "R2",
+      "script": "User B (different account), new thread: 'What did we discuss in my previous chat?'",
+      "expect": "'I don't have any past conversations' - must NOT see user A's summary (isolation)"
+    },
+    {
+      "id": "R3",
+      "script": "User A, thread 2 (unfinalized): ask recall question before finalizing any thread",
+      "expect": "No past conversations found (current thread is not in memory yet)"
+    }
+  ],
+  "faithfulness_tests": [
+    {
+      "id": "F1",
+      "context_pages": [
+        552
+      ],
+      "question": "What does SHA produce and how does it compare to MD5?",
+      "good_answer": "SHA produces a 160-bit message digest and is slightly slower than MD5.",
+      "bad_answer": "SHA produces a 160-bit message digest and is faster than MD5.",
+      "bad_type": "contradiction"
+    },
+    {
+      "id": "F2",
+      "context_pages": [
+        545
+      ],
+      "question": "Who invented public-key cryptography and when?",
+      "good_answer": "It was invented in 1976 by Whitfield Diffie and Martin Hellman.",
+      "bad_answer": "It was invented in 1977 by Whitfield Diffie and Martin Hellman.",
+      "bad_type": "wrong number"
+    },
+    {
+      "id": "F3",
+      "context_pages": [
+        255
+      ],
+      "question": "What are the classes of DoS attacks?",
+      "good_answer": "Bandwidth attacks, protocol attacks and logic attacks.",
+      "bad_answer": "Bandwidth attacks, protocol attacks, logic attacks and application-layer attacks.",
+      "bad_type": "added item"
+    },
+    {
+      "id": "F4",
+      "context_pages": [
+        283
+      ],
+      "question": "What are the types of social engineering?",
+      "good_answer": "Human-based, which is person to person interaction, and computer-based, which uses software.",
+      "bad_answer": "Human-based and computer-based. Phishing is the most common computer-based type and causes most breaches.",
+      "bad_type": "extra unsupported claim"
+    },
+    {
+      "id": "F5",
+      "context_pages": [
+        298
+      ],
+      "question": "What is passive session hijacking?",
+      "good_answer": "The attacker hijacks a session but sits back and records all the traffic being sent.",
+      "bad_answer": "The attacker hijacks a session and injects commands while recording all the traffic.",
+      "bad_type": "contradiction"
+    },
+    {
+      "id": "F6",
+      "context_pages": [
+        269
+      ],
+      "question": "Which ports does Trinoo use?",
+      "good_answer": "Attacker to master 27665/tcp, master to daemon 27444/udp, daemon to master 31335/udp.",
+      "bad_answer": "Attacker to master 27665/tcp, master to daemon 27444/tcp, daemon to master 31335/udp.",
+      "bad_type": "subtle swap"
+    },
+    {
+      "id": "F7",
+      "context_pages": [
+        17
+      ],
+      "question": "What does security rest on?",
+      "good_answer": "Confidentiality, authenticity, integrity and availability.",
+      "bad_answer": "Confidentiality, integrity, availability and non-repudiation.",
+      "bad_type": "swapped item"
+    }
+  ]
+}

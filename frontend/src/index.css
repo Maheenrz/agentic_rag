@@ -1,0 +1,41 @@
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Instrument Serif", Georgia, serif;
+
+  --color-canvas: #121211;
+  --color-surface: #1b1b19;
+  --color-surface-2: #242421;
+  --color-border: #33332e;
+  --color-ink: #f2efe8;
+  --color-muted: #9b988d;
+
+  /* The only accent color. Change these two lines to restyle the whole app. */
+  --color-accent: #d97757;
+  --color-accent-hover: #e48a6d;
+
+  /* Used only for error messages and destructive buttons. */
+  --color-danger: #e06c5c;
+}
+
+html {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}

@@ -1,0 +1,17 @@
+fastapi
+FlashRank
+langchain_chroma
+langchain_core
+langchain_groq
+langchain_huggingface
+langchain_text_splitters
+langgraph
+passlib
+pydantic
+PyJWT
+pypdf
+python-dotenv
+scikit_learn
+sentence_transformers
+streamlit
+rank-bm25

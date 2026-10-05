@@ -16,4 +16,9 @@ __pycache__/
 
 
 # Streamlit Local Cache/Settings (Optional)
-.streamlit/secrets.toml
+.streamlit/secrets.tomldata/corpus/
+results/
+.env
+*.db
+chroma_store/
+eval_chroma/
