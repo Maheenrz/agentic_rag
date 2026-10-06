@@ -1,5 +1,4 @@
-# NOT BUILT OR RUN YET: build it locally first (docker build -t docs-api .) before trusting it.
-# Python 3.9 reached end of life in Oct 2025 and new langgraph versions need 3.10+.
+# Python 3.11 (3.9 EOL Oct 2025; new langgraph versions need 3.10+).
 # If you change the Python version, re-run tests/test_app.py on that version.
 FROM python:3.11-slim
 
@@ -24,4 +23,4 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 COPY app ./app
 
 # init_db is safe to run on every start (IF NOT EXISTS everywhere).
-CMD ["sh", "-c", "python -m app.db && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD python -m app.db && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
