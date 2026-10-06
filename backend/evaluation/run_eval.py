@@ -14,15 +14,14 @@ as graph.py / config.py / document_processor.py / reranker.py, then:
     python run_eval.py                            # everything
 
 It calls your code directly (no server, no login). It uses its OWN databases
-(./eval_chroma and ./eval_data.db) so your real app data is never touched.
+(the Postgres in EVAL_DATABASE_URL) so your real app data is never touched.
 Results go to results/<timestamp>_<tag>/ (summary.json + one CSV per stage).
 
 Speed notes:
 - PyMuPDF (fitz) is used instead of pypdf -- roughly 10-50x faster on PDFs
   with a bad xref table like EN-Ethical_Hacking.pdf.
 - Both ML models are preloaded in parallel background threads on startup.
-- The eval Chroma index is persistent; the PDF is parsed exactly ONCE,
-  ever, unless you delete ./eval_chroma.
+- The eval index lives in EVAL_DATABASE_URL; the PDF is only re-indexed if that collection is empty.
 """
 
 import argparse
@@ -37,11 +36,22 @@ import time
 import uuid
 from datetime import datetime
 
-from sympy import re
+import re
+from app.rag.parsers import parse_file
+from app.rag.document_processor import add_org_chunks, build_org_retriever, get_org_store, _get_pg_connection
 
-# Isolate eval data from the real app. Must be set BEFORE importing config.
-os.environ.setdefault("SQLITE_DB_PATH", "./eval_data.db")
-os.environ.setdefault("CHROMA_PERSIST_DIR", "./eval_chroma")
+EVAL_ORG, EVAL_CID = "eval_org", "eval_handbook"
+
+
+# Evals must NEVER run against your dev/prod Supabase: they write thousands of chunks and
+# create/delete collections. Point EVAL_DATABASE_URL at a throwaway Postgres with pgvector, e.g.
+#   docker run -d --name evaldb -e POSTGRES_PASSWORD=test -p 5433:5432 pgvector/pgvector:pg16
+#   export EVAL_DATABASE_URL="postgresql://postgres:test@localhost:5433/postgres"
+_eval_db = os.environ.get("EVAL_DATABASE_URL")
+if not _eval_db:
+    sys.exit("Set EVAL_DATABASE_URL to a throwaway Postgres (see the comment above). Refusing to touch DATABASE_URL.")
+os.environ["DATABASE_URL"] = _eval_db
+os.environ["IS_PG"] = "true"
 
 # ---------------------------------------------------------------------------
 # Parallel model preload -- kicks off BEFORE the heavy imports so downloads
@@ -213,57 +223,54 @@ def _extract_pages_pypdf(pdf_path):
     return pages
 
 
+
+
+def _eval_rows(sql, params=()):
+    with _get_pg_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return cur.fetchall()
+
+
 def ensure_index(pdf_path):
-    """Index the PDF once into a persistent eval collection (skipped on later runs)."""
-    store = get_thread_vector_store(EVAL_THREAD)
     try:
-        n = store._collection.count()
-    except Exception:  # noqa: BLE001
+        n = _eval_rows("SELECT COUNT(*) AS n FROM langchain_pg_embedding WHERE cmetadata->>'collection_id' = %s",
+                    (EVAL_CID,))[0]["n"]
+    except Exception:
         n = 0
-
     if n:
-        print(f"[index] reusing existing eval index ({n} chunks) -- skipping PDF parse")
-        return store
-
-    pages = _extract_pages(pdf_path, _PDF_BACKEND)
-    t0 = time.time()
-    chunks = chunk_documents(pages, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP)
-    print(f"[index] {len(chunks)} chunks from {len(pages)} pages "
-          f"(chunking took {time.time() - t0:.1f}s)")
-
-    # Batch size 512 is a good CPU default; larger batches help slightly on
-    # Metal/MPS but can blow memory on small machines.
-    BATCH = 512
-    print(f"[index] embedding + storing in batches of {BATCH} ...")
-    t0 = time.time()
-    for s in range(0, len(chunks), BATCH):
-        batch = chunks[s : s + BATCH]
-        store.add_documents(batch)
-        done = min(s + BATCH, len(chunks))
-        elapsed = time.time() - t0
-        rate = done / elapsed if elapsed > 0 else 0
-        print(f"[index]   {done}/{len(chunks)} chunks  "
-              f"({elapsed:.1f}s, {rate:.0f} chunks/s)")
-    print(f"[index] done: {store._collection.count()} chunks in {time.time() - t0:.1f}s")
-    return store
+        print(f"[index] reusing eval index ({n} chunks)")
+    else:
+        with open(pdf_path, "rb") as f:
+            docs, _ = parse_file(os.path.basename(pdf_path), f.read())   # production parser
+        chunks = chunk_documents(docs, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP)
+        doc_id = uuid.uuid4().hex
+        for c in chunks:
+            c.metadata.update(org_id=EVAL_ORG, collection_id=EVAL_CID, doc_id=doc_id,
+                              source=os.path.basename(pdf_path))
+        add_org_chunks(chunks)
+        print(f"[index] indexed {len(chunks)} chunks")
+    return build_org_retriever(EVAL_ORG, [EVAL_CID], k=RERANK_CANDIDATE_K)   # the hybrid retriever
 
 
-def chunks_for_pages(store, pages):
-    if not pages:
-        return []
-    res = store.get(
-        where={"page": {"$in": list(pages)}}, include=["documents", "metadatas"]
-    )
-    return [
-        Document(page_content=d, metadata=m)
-        for d, m in zip(res["documents"], res["metadatas"])
-    ]
+def make_retriever(retriever):
+    return retriever                                   # ensure_index already returns it
 
 
-def make_retriever(store):
-    return store.as_retriever(
-        search_type="similarity", search_kwargs={"k": RERANK_CANDIDATE_K}
-    )
+def chunks_for_pages(_unused, pages):
+    rows = _eval_rows(
+        """SELECT e.document, e.cmetadata FROM langchain_pg_embedding e
+           WHERE e.cmetadata->>'collection_id' = %s
+             AND (e.cmetadata->>'page')::int = ANY(%s)""",
+        (EVAL_CID, list(pages)))
+    return [Document(page_content=r["document"], metadata=r["cmetadata"]) for r in rows]
+
+
+def _eval_pages():
+    return sorted(r["p"] for r in _eval_rows(
+        "SELECT DISTINCT (cmetadata->>'page')::int AS p FROM langchain_pg_embedding "
+        "WHERE cmetadata->>'collection_id' = %s", (EVAL_CID,)))
+
 
 
 def run_graph(question, thread_id, user_id, retriever):
@@ -299,7 +306,7 @@ def stage_retrieval(store, qs, args):
     rows = []
     for q in qs:
         gold = set(q["gold_pages"])
-        cands = store.similarity_search(q["question"], k=RERANK_CANDIDATE_K)
+        cands = store.invoke(q["question"])
         vec_pages = [d.metadata["page"] for d in cands]
         rr_pages = [
             d.metadata["page"]
@@ -443,7 +450,7 @@ def stage_retrieval(store, qs, args):
 
 def stage_grader_batch(store, qs, args):
     rng = random.Random(7)
-    all_pages = sorted({m["page"] for m in store.get(include=["metadatas"])["metadatas"]})
+    all_pages = _eval_pages()
     rows = []
     for q in qs:
         gold = q["gold_pages"]

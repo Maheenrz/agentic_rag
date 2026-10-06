@@ -1,10 +1,13 @@
-# backend/reranker.py
+# app/core/reranker.py
+import os
+
 from flashrank import Ranker, RerankRequest
 from langchain_core.documents import Document
 
 from app.config import RERANK_MODEL
 
-_ranker = Ranker(model_name=RERANK_MODEL)
+# FLASHRANK_CACHE lets the Docker build download the model once, into the image.
+_ranker = Ranker(model_name=RERANK_MODEL, cache_dir=os.getenv("FLASHRANK_CACHE", "/tmp"))
 
 
 def rerank_documents(query: str, documents: list[Document], top_n: int) -> list[Document]:

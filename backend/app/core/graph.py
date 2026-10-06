@@ -36,17 +36,15 @@ shows exactly which fields get reset every time.
 """
 
 import re
-import sqlite3
 from typing import Literal, TypedDict
 
 from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
-from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import StateGraph, END
 
 from app.config import (GENERATION_MODEL, INJECTION_QUERY_ACTION, MAX_QUERY_REWRITES, MEMORY_WINDOW_TURNS,
-                    SMALL_MODEL, SQLITE_DB_PATH, logger)
+                    SMALL_MODEL, logger)
 from app.rag.document_processor import check_cache, format_context, location_label, search_memory, write_cache
 from app.guardrails.security import HIGH, POLICY_BLOCK_MESSAGE, SYSTEM_CANARY, sanitize_answer, scan_text
 from app.guardrails.pii import apply_policy as apply_pii_policy
@@ -65,7 +63,7 @@ from app.core.reranker import rerank_documents
 NO_ANSWER_MESSAGE = "I couldn't find that information in the uploaded documents."
 PII_BLOCK_MESSAGE = "I can't show that answer because it contains restricted personal information."
 NO_MEMORY_ANSWER_MESSAGE = "I couldn't find that information in past conversations."
-RETRIEVAL_TOOL = "Vector DB (Chroma)"
+RETRIEVAL_TOOL = "Vector DB (pgvector + BM25)"
 MEMORY_TOOL = "Conversation Memory"
 CACHE_TOOL = "Semantic Cache"
 
@@ -448,6 +446,13 @@ def grade_chunks_node(state: AgentState, config: RunnableConfig) -> dict:
 
 def rewrite_query_node(state, config):
     last_query = state.get("search_query") or state["question"]
+
+    # Guests get a fast path: no rewrite. They only have a couple of questions,
+    # and an extra Groq call is wasted on a throwaway session.
+    if config["configurable"].get("user_id", "").startswith("guest:"):
+        trace = state.get("trace", []) + [_log("Guest session: skipping query rewrite")]
+        return {"rewrite_count": state.get("rewrite_count", 0) + 1, "trace": trace}
+
     prompt = _REWRITE_PROMPT.format(question=last_query)
     try:
         response = small_llm.invoke([HumanMessage(content=prompt)])
@@ -527,14 +532,12 @@ def build_sources_node(state, config):
 
 
 def update_memory_node(state: AgentState, config: RunnableConfig) -> dict:
-    """Was ConversationMemory.add_turn + ._compress_oldest. Runs at the end
-    of every turn. Whatever this returns is what the checkpointer actually
-    keeps for next time -- this is the ONLY node that touches raw_turns/
-    running_summary."""
     raw_turns = state.get("raw_turns", []) + [{"question": state["question"], "answer": state["answer"]}]
     summary = state.get("running_summary", "")
 
-    if len(raw_turns) > MEMORY_WINDOW_TURNS:
+    is_guest = config["configurable"].get("user_id", "").startswith("guest:")
+
+    if len(raw_turns) > MEMORY_WINDOW_TURNS and not is_guest:
         overflow = len(raw_turns) - MEMORY_WINDOW_TURNS
         to_compress, raw_turns = raw_turns[:overflow], raw_turns[overflow:]
         turns_text = "\n".join(f"User: {t['question']}\nAssistant: {t['answer']}" for t in to_compress)
@@ -549,7 +552,6 @@ def update_memory_node(state: AgentState, config: RunnableConfig) -> dict:
             logger.exception("Memory: summarization failed, keeping previous summary")
 
     return {"raw_turns": raw_turns, "running_summary": summary}
-
 
 def summarize_thread_for_storage(raw_turns: list[Turn], running_summary: str) -> tuple[str, str]:
     """Was ConversationMemory.summarize_thread_for_storage(). Now a plain
@@ -678,17 +680,38 @@ def _build_graph() -> StateGraph:
     return g
 
 
-_conn = sqlite3.connect(SQLITE_DB_PATH, check_same_thread=False)
-_checkpointer = SqliteSaver(_conn)
+from app.config import DATABASE_URL, logger
+from psycopg_pool import ConnectionPool
+from langgraph.checkpoint.postgres import PostgresSaver
+
+# --------------------------------------------------------------------------
+# Supabase Postgres Checkpointer Setup
+# --------------------------------------------------------------------------
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is missing!")
+
+# Create a connection pool for LangGraph state persistence
+_pool = ConnectionPool(
+    conninfo=DATABASE_URL,
+    max_size=10,
+    open=True,
+    kwargs={"autocommit": True, "prepare_threshold": 0},
+)
+
+# Initialize checkpointer
+_checkpointer = PostgresSaver(_pool)
+
+# Compile graph with Supabase checkpointer
 compiled_graph = _build_graph().compile(checkpointer=_checkpointer)
 
 
 def delete_thread_state(thread_id: str) -> None:
-    try:
-        _checkpointer.delete_thread(thread_id)
-    except AttributeError:        # older langgraph-checkpoint-sqlite
-        with _checkpointer.lock:
-            for table in ("checkpoints", "writes"):
-                _conn.execute(f"DELETE FROM {table} WHERE thread_id = ?", (thread_id,))
-            _conn.commit()
-            _conn.commit()
+    """Deletes all checkpoint history for a specific thread from Supabase."""
+    with _pool.connection() as conn:
+        conn.execute("DELETE FROM checkpoint_writes WHERE thread_id = %s", (thread_id,))
+        conn.execute("DELETE FROM checkpoints WHERE thread_id = %s", (thread_id,))
+        try:
+            conn.execute("DELETE FROM checkpoint_blobs WHERE thread_id = %s", (thread_id,))
+        except Exception:
+            pass  # Handle versions where checkpoint_blobs table isn't present
+    logger.info("Deleted thread state for thread_id: %s", thread_id)

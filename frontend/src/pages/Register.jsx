@@ -1,96 +1,82 @@
-import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { Button, Input, Label } from '../components/ui';
 
-export default function Register({ onSwitchToLogin }) {
-  const { register } = useAuth();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [orgName, setOrgName] = useState("");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+const USERNAME_RE = /^[A-Za-z0-9_.@-]{3,64}$/;
+const MIN_PASSWORD_CHARS = 8;
+const MAX_PASSWORD_BYTES = 72;
 
-  const handleSubmit = async (e) => {
+function validateRegister(username, password) {
+  if (!USERNAME_RE.test(username)) return 'Username must be 3–64 characters: letters, digits, _ . @ -';
+  if (password.length < MIN_PASSWORD_CHARS) return `Password must be at least ${MIN_PASSWORD_CHARS} characters.`;
+  if (new TextEncoder().encode(password).length > MAX_PASSWORD_BYTES)
+  return 'Password is too long. Try a shorter one (or fewer accented / non-Latin characters).';
+  return '';
+}
+
+export default function Register() {
+  const { register } = useApp();
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ username: '', password: '', org: '' });
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  async function submit(e) {
     e.preventDefault();
-    setError("");
-    setSubmitting(true);
+    setError('');
+    const username = form.username.trim();
+    const problem = validateRegister(username, form.password);
+    if (problem) return setError(problem);
+
+    setBusy(true);
     try {
-      await register(username, password, orgName);
+      await register(username, form.password, form.org.trim());
+      navigate('/chat');
     } catch (err) {
-      setError(err.message || "Registration failed");
+      setError(err.message);
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm bg-white border border-slate-200 rounded-xl shadow-sm p-8">
-        <h1 className="text-xl font-semibold text-slate-900 mb-1">Create your organization</h1>
-        <p className="text-sm text-slate-500 mb-6">You'll be the admin — invite teammates later.</p>
+    <div className="grid min-h-[calc(100vh-5rem)] place-items-center px-5 py-10">
+      <div className="glass w-full max-w-md rounded-3xl p-8 animate-fade-up">
+        <h1 className="font-display text-5xl leading-tight">Create your organisation.</h1>
+        <p className="mb-8 mt-3 text-sm text-muted">
+          You will be the admin. You can add people and collections after this.
+        </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="username">
-              Username
-            </label>
-            <input
-              id="username"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              minLength={8}
-              required
-            />
-            <p className="text-xs text-slate-400 mt-1">At least 8 characters.</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="orgName">
-              Organization name <span className="text-slate-400 font-normal">(optional)</span>
-            </label>
-            <input
-              id="orgName"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
-              placeholder={username ? `${username}'s organization` : "Acme Inc"}
-            />
-          </div>
+        <form onSubmit={submit} className="space-y-4">
+          <Label>
+            Username
+            <Input className="mt-1.5" autoComplete="username" value={form.username} onChange={set('username')} />
+            <span className="mt-1.5 block text-xs font-normal text-muted">3–64 characters: letters, digits, _ . @ -</span>
+          </Label>
+          <Label>
+            Password
+            <Input className="mt-1.5" type="password" autoComplete="new-password" value={form.password} onChange={set('password')} />
+            <span className="mt-1.5 block text-xs font-normal text-muted">At least 8 characters.</span>
+          </Label>
+          <Label>
+            Organisation name
+            <Input className="mt-1.5" placeholder="e.g. Acme Ltd" value={form.org} onChange={set('org')} />
+          </Label>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          <Button variant="primary" type="submit" disabled={busy} className="w-full py-3">
+            {busy ? 'Please wait…' : <>Create account </>}
+          </Button>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-lg bg-slate-900 text-white text-sm font-medium py-2.5 hover:bg-slate-800 disabled:opacity-50 transition-colors"
-          >
-            {submitting ? "Creating account..." : "Create account"}
-          </button>
+          {error && <p className="text-sm text-danger">{error}</p>}
         </form>
 
-        <p className="text-sm text-slate-500 mt-6 text-center">
-          Already have an account?{" "}
-          <button
-            type="button"
-            onClick={onSwitchToLogin}
-            className="text-slate-900 font-medium hover:underline"
-          >
-            Sign in
-          </button>
+        <p className="mt-8 text-sm text-muted">
+          Already have an account?{' '}
+          <Link to="/login" className="text-ink underline-offset-4 transition hover:underline">Sign in</Link>
         </p>
       </div>
     </div>

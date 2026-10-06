@@ -1,80 +1,90 @@
 """
 audit_store.py
----------------
-Append-only audit trail (same SQLite file). Answers "who did what, when" for
-admin actions, logins, uploads, and security events (blocked questions,
-suspicious documents). log() NEVER raises: a logging failure must not break
-the request it is describing.
+Append-only audit trail. Answers "who did what, when" for
+admin actions, logins, uploads, and security events. log() NEVER raises:
+a logging failure must not break the request it is describing.
 
 Privacy: we store the first 200 chars of a flagged question, never full chat
 content for ordinary requests.
 """
 
 import json
-import sqlite3
 import time
-from contextlib import contextmanager
 from typing import Optional
+from sqlalchemy import Float, Index, Integer, String, Text, text
+from sqlalchemy.orm import Mapped, mapped_column
 
-from app.config import SQLITE_DB_PATH, logger
+from app.db import Base, engine, SessionLocal
 
+from app.config import logger
+from app.db import Base, engine, connect
 
-@contextmanager
-def _connect():
-    conn = sqlite3.connect(SQLITE_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-        conn.commit()
-    finally:
-        conn.close()
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ts: Mapped[float] = mapped_column(Float, nullable=False)
+    org_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    username: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    action: Mapped[str] = mapped_column(String, nullable=False)
+    target: Mapped[str] = mapped_column(String, nullable=False, server_default="")
+    detail_json: Mapped[str] = mapped_column(Text, nullable=False, server_default="{}")
+    ip: Mapped[str] = mapped_column(String, nullable=False, server_default="")
+
+    __table_args__ = (
+        Index("idx_audit_org_ts", "org_id", "ts"),
+    )
 
 
 def _init_db() -> None:
-    with _connect() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS audit_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ts REAL NOT NULL,
-                org_id TEXT, user_id TEXT, username TEXT,
-                action TEXT NOT NULL,
-                target TEXT NOT NULL DEFAULT '',
-                detail_json TEXT NOT NULL DEFAULT '{}',
-                ip TEXT NOT NULL DEFAULT ''
-            )
-        """)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_org_ts ON audit_log (org_id, ts)")
-
+    if engine:
+        Base.metadata.create_all(bind=engine, tables=[AuditLog.__table__])
 
 _init_db()
 
-
 def log(action: str, user: Optional[dict] = None, target: str = "", detail: Optional[dict] = None,
         ip: str = "", org_id: Optional[str] = None, username: Optional[str] = None) -> None:
+    if not SessionLocal:
+        return
     try:
-        with _connect() as conn:
-            conn.execute(
-                "INSERT INTO audit_log (ts, org_id, user_id, username, action, target, detail_json, ip) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (time.time(), org_id or (user or {}).get("org_id"), (user or {}).get("user_id"),
-                 username or (user or {}).get("username"), action, target,
-                 json.dumps(detail or {}, default=str)[:4000], ip),
+        with SessionLocal() as session:
+            entry = AuditLog(
+                ts=time.time(),
+                org_id=org_id or (user or {}).get("org_id"),
+                user_id=(user or {}).get("user_id"),
+                username=username or (user or {}).get("username"),
+                action=action,
+                target=target,
+                detail_json=json.dumps(detail or {}, default=str)[:4000],
+                ip=ip,
             )
+            session.add(entry)
+            session.commit()
     except Exception:
         logger.exception("audit log write failed for action %s", action)
 
 
 def list_events(org_id: str, limit: int = 100, action: Optional[str] = None, before_id: Optional[int] = None) -> list[dict]:
-    q = "SELECT id, ts, user_id, username, action, target, detail_json, ip FROM audit_log WHERE org_id = ?"
-    args: list = [org_id]
+    query_str = "SELECT id, ts, user_id, username, action, target, detail_json, ip FROM audit_log WHERE org_id = :org_id"
+    params = {"org_id": org_id}
+
     if action:
-        q += " AND action = ?"; args.append(action)
+        query_str += " AND action = :action"
+        params["action"] = action
     if before_id:
-        q += " AND id < ?"; args.append(before_id)
-    q += " ORDER BY id DESC LIMIT ?"; args.append(max(1, min(limit, 500)))
-    with _connect() as conn:
-        rows = conn.execute(q, args).fetchall()
+        query_str += " AND id < :before_id"
+        params["before_id"] = before_id
+
+    query_str += " ORDER BY id DESC LIMIT :limit"
+    params["limit"] = max(1, min(limit, 500))
+
+    with connect() as session:
+        rows = session.execute(text(query_str), params).mappings().fetchall()
+
     out = []
     for r in rows:
-        d = dict(r); d["detail"] = json.loads(d.pop("detail_json") or "{}"); out.append(d)
+        d = dict(r)
+        d["detail"] = json.loads(d.pop("detail_json") or "{}")
+        out.append(d)
     return out

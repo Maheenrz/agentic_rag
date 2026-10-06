@@ -40,8 +40,15 @@ import time
 import uuid
 from datetime import datetime
 
-os.environ.setdefault("SQLITE_DB_PATH", "./inj_eval.db")        # isolated: your real data is never touched
-os.environ.setdefault("CHROMA_PERSIST_DIR", "./inj_eval_chroma")
+# Evals must NEVER run against your dev/prod Supabase: they write thousands of chunks and
+# create/delete collections. Point EVAL_DATABASE_URL at a throwaway Postgres with pgvector, e.g.
+#   docker run -d --name evaldb -e POSTGRES_PASSWORD=test -p 5433:5432 pgvector/pgvector:pg16
+#   export EVAL_DATABASE_URL="postgresql://postgres:test@localhost:5433/postgres"
+_eval_db = os.environ.get("EVAL_DATABASE_URL")
+if not _eval_db:
+    sys.exit("Set EVAL_DATABASE_URL to a throwaway Postgres (see the comment above). Refusing to touch DATABASE_URL.")
+os.environ["DATABASE_URL"] = _eval_db
+os.environ["IS_PG"] = "true"
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from injection_cases import CASES, FILLERS  # noqa: E402
@@ -195,8 +202,7 @@ def main(argv=None):
     print(f"{len(cases)} cases x {len(names)} configs x {a.repeat} repeat(s)" + ("" if a.no_controls else " + controls"))
     print("indexing documents ...")
     org = f"{ORG_PREFIX}_{uuid.uuid4().hex[:8]}"          # fresh org id per run
-    # Fresh Chroma COLLECTION per run as well. Chroma's filtered search returned fewer chunks than exist once the
-    # same collection held several hundred vectors (seen in testing), which would silently hide the poisoned document.
+    # Fresh vector COLLECTION per run as well, so chunks left over from an earlier run can never show up in this one.
     original_collection = D.ORG_COLLECTION_NAME
     D.ORG_COLLECTION_NAME = f"inj_eval_{uuid.uuid4().hex[:10]}"
     prepared = []
@@ -315,7 +321,6 @@ def main(argv=None):
     jsonl.close()
     print(f"\nSaved to {out_dir}/  (summary.json, runs.csv, runs.jsonl)")
     D.ORG_COLLECTION_NAME = original_collection
-    # Clean up the throw-away index with:  rm -rf inj_eval_chroma inj_eval.db*   (it never touches your real data)
     return summary
 
 

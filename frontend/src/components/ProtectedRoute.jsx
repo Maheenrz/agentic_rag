@@ -1,10 +1,8 @@
-import { Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { Navigate, Outlet } from 'react-router-dom';
+import { getToken } from '../lib/api';
+import Layout from './Layout';
 
-export default function ProtectedRoute({ children }) {
-  const { token } = useAuth();
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-  return children;
+export default function ProtectedRoute() {
+  if (!getToken()) return <Navigate to="/login" replace />;
+  return <Layout />;
 }

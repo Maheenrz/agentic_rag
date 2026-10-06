@@ -1,19 +1,17 @@
 .env
+.env.*
 venv/
 .venv/
 __pycache__/
 *.pyc
-*.db
-i.db
-app_data.db
-chroma/
-chroma_t/
-chroma_store/
-node_modules/
-dist/
+.pytest_cache/
 .DS_Store
-# Keep out if it contains real company documents
+# local databases / old Chroma / SQLite leftovers
+*.db
+*.db-shm
+*.db-wal
 data/
-results/
-*.jsonl
-*.csv
+# eval outputs: keep summary.json files you quote in the README, ignore the bulky rest
+evaluation/results/*/*.csv
+evaluation/results/*/*.jsonl
+EN-Ethical_Hacking.pdf

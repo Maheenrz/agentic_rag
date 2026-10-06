@@ -21,6 +21,8 @@ import json
 import re
 from typing import Optional
 
+
+
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -32,11 +34,17 @@ from app.stores import feedback_store
 from app.guardrails import guardrail_policy
 from app.stores import org_store
 from app.auth import create_access_token, get_current_user_id, hash_password, verify_password
-from app.config import (CHAT_LIMIT, CORS_ORIGINS, DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE, FEEDBACK_LIMIT, LOGIN_FAIL_LIMIT,
-                    MAX_UPLOAD_MB, RERANK_CANDIDATE_K, UPLOAD_LIMIT, logger)
+from app.config import (CHAT_LIMIT, CORS_ORIGINS, DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE,
+                    ENABLE_GUEST_CHAT, FEEDBACK_LIMIT,
+                    GUEST_COLLECTION_PREFIX, GUEST_MAX_UPLOAD_MB, GUEST_QUESTION_LIMIT,
+                    GUEST_SESSION_TTL_MINUTES, GUEST_UPLOAD_LIMIT,
+                    LOGIN_FAIL_LIMIT, MAX_UPLOAD_MB, RERANK_CANDIDATE_K, UPLOAD_LIMIT, logger)
 
+from app.rag.parsers import parse_file
 from app.rag.document_processor import (
+    add_org_chunks,
     build_org_retriever,
+    chunk_documents,
     delete_collection_chunks,
     delete_doc_chunks,
     delete_thread_cache,
@@ -63,6 +71,9 @@ from app.guardrails.guard_llm import classify_input
 from app.guardrails.pii import apply_policy as apply_pii_policy
 from app.guardrails.security import POLICY_BLOCK_MESSAGE, RateLimiter, check_user_input
 
+
+
+
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 MIN_PASSWORD_LEN = 8
 MAX_PASSWORD_BYTES = 72                      # bcrypt silently ignores/rejects anything beyond this
@@ -72,6 +83,8 @@ login_fail_limiter = RateLimiter(*LOGIN_FAIL_LIMIT)
 chat_limiter = RateLimiter(*CHAT_LIMIT)
 upload_limiter = RateLimiter(*UPLOAD_LIMIT)
 feedback_limiter = RateLimiter(*FEEDBACK_LIMIT)
+guest_upload_limiter = RateLimiter(*GUEST_UPLOAD_LIMIT)
+guest_question_limiter = RateLimiter(*GUEST_QUESTION_LIMIT)
 
 
 def _ip(request: Request) -> str:
@@ -100,17 +113,16 @@ def _validate_new_credentials(username: str, password: str) -> None:
 app = FastAPI(title="Private Docs Assistant API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://frontendagentic-n5bnld82y-mahheen508-gmailcoms-projects.vercel.app", # Your exact Vercel URL
-        "http://localhost:5173", # For local development
-        "http://localhost:3000"
-    ],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+@app.get("/health")
+def health():
+    return {"ok": True}
 
 # ------------------------------------------------------------------ models
 class RegisterRequest(BaseModel):
@@ -161,6 +173,10 @@ class ChatRequest(BaseModel):
     top_k: int = 4
     collection_ids: Optional[list[str]] = None   # optional narrowing; can never widen access
 
+
+class GuestChatRequest(BaseModel):
+    question: str
+    collection_id: str                       # the throwaway collection the guest uploaded into
 
 # -------------------------------------------------------------- dependencies
 def get_current_user(user_id: str = Depends(get_current_user_id)) -> dict:
@@ -229,7 +245,7 @@ def register(body: RegisterRequest, request: Request):
 def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     ip = _ip(request)
     key = f"{ip}:{form_data.username.lower()}"
-    wait = login_fail_limiter.retry_after(key)          # brute-force lockout: only FAILED attempts count
+    wait = login_fail_limiter.retry_after(key)
     if wait:
         audit_store.log("login_locked_out", ip=ip, username=form_data.username)
         raise HTTPException(status_code=429, detail=f"Too many failed logins. Try again in {wait}s.",
@@ -246,10 +262,14 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
 
 @app.get("/me")
 def me(user: dict = Depends(get_current_user)):
-    org = org_store.get_org(user["org_id"])
-    return {"user_id": user["user_id"], "username": user["username"], "role": user["role"],
-            "org": {"org_id": org["org_id"], "name": org["name"]}}
-
+    org = org_store.get_org(user["org_id"]) if user.get("org_id") else None
+    return {
+        "user_id": user["user_id"],
+        "username": user["username"],
+        "role": user.get("role", "member"),
+        "org_id": user.get("org_id"),
+        "org": {"org_id": org["org_id"], "name": org["name"]} if org else None,
+    }
 
 # ------------------------------------------------------------ org admin
 @app.get("/org/users")
@@ -335,7 +355,6 @@ def org_delete_user(user_id: str, request: Request, admin: dict = Depends(requir
     for thread_id in list_all_thread_ids(user_id):
         delete_thread(thread_id)
         org_store.delete_thread_collections(thread_id)
-        feedback_store.delete_thread_feedback(thread_id)
         feedback_store.delete_thread_feedback(thread_id)
         for cleanup in (delete_thread_cache, delete_thread_summary, delete_thread_state):
             try:
@@ -465,6 +484,8 @@ def _check_embeddings() -> None:
         org_store.assert_embedding_mode(get_embedding_mode_label())
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
+
+    
 
 
 @app.get("/collections/{collection_id}/documents")
@@ -842,3 +863,211 @@ def put_guardrails(body: dict, request: Request, admin: dict = Depends(require_a
         raise HTTPException(status_code=400, detail=str(exc))
     audit_store.log("guardrails_changed", admin, ip=_ip(request), detail={"update": body})
     return policy
+
+
+# ------------------------------------------------------------------ guest chat
+# Temporary "upload your own doc, ask about it, throw it away" mode.
+# No auth, no persistence: guests never see our collections, and their own
+# uploads are deleted when the modal closes or after GUEST_SESSION_TTL_MINUTES.
+
+import threading
+import uuid as _uuid
+from datetime import datetime, timezone, timedelta
+
+_guest_collections: dict[str, datetime] = {}       # collection_id -> expires_at
+_guest_lock = threading.Lock()
+
+
+def _guest_sweep() -> None:
+    """Delete any guest collections past their TTL. Called opportunistically."""
+    now = datetime.now(timezone.utc)
+    with _guest_lock:
+        expired = [cid for cid, exp in _guest_collections.items() if exp <= now]
+        for cid in expired:
+            _guest_collections.pop(cid, None)
+    for cid in expired:
+        try:
+            delete_collection_chunks(cid)
+            logger.info("guest cleanup: deleted chunks for %s", cid)
+        except Exception:
+            logger.exception("guest cleanup failed for %s", cid)
+
+
+def _guest_collection_valid(cid: str) -> bool:
+    with _guest_lock:
+        exp = _guest_collections.get(cid)
+        if not exp or exp <= datetime.now(timezone.utc):
+            return False
+    return True
+
+
+@app.post("/chat/guest/upload", status_code=status.HTTP_201_CREATED)
+def guest_upload(request: Request, files: list[UploadFile] = File(...)):
+    """Guests upload one (or a few) documents. The server chunks + embeds them
+    into a throwaway collection, returns the collection id + an expiry.
+    Nothing is stored beyond GUEST_SESSION_TTL_MINUTES."""
+    if not ENABLE_GUEST_CHAT:
+        raise HTTPException(status_code=403, detail="Guest chat is disabled")
+
+    ip = _ip(request)
+    _throttle(guest_upload_limiter, ip)
+    _guest_sweep()
+
+    # Size caps: the guest limit is smaller than the logged-in one.
+    limit_bytes = GUEST_MAX_UPLOAD_MB * 1024 * 1024
+    docs: list = []
+    for f in files:
+        data = f.file.read(limit_bytes + 1)
+        if len(data) > limit_bytes:
+            raise HTTPException(status_code=413,
+                                detail=f"{f.filename} is larger than {GUEST_MAX_UPLOAD_MB} MB")
+        try:
+            parsed, _notes = parse_file(f.filename or "upload.txt", data)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        for d in parsed:
+            d.metadata.update(source=f.filename or "upload.txt")
+        docs.extend(parsed)
+
+    if not docs:
+        raise HTTPException(status_code=400, detail="No text could be extracted from those files")
+
+    chunks = chunk_documents(docs, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP)
+    if not chunks:
+        raise HTTPException(status_code=400, detail="Nothing to index")
+
+    cid = f"{GUEST_COLLECTION_PREFIX}{_uuid.uuid4().hex}"
+    doc_id = _uuid.uuid4().hex
+    for c in chunks:
+        c.metadata.update(org_id="guest", collection_id=cid, doc_id=doc_id)
+
+    try:
+        add_org_chunks(chunks)
+    except Exception:
+        delete_collection_chunks(cid)      # never leave half-indexed chunks
+        raise
+
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=GUEST_SESSION_TTL_MINUTES)
+    with _guest_lock:
+        _guest_collections[cid] = expires_at
+
+    logger.info("guest upload: %d chunks -> %s (expires %s)", len(chunks), cid, expires_at.isoformat())
+    return {
+        "collection_id": cid,
+        "chunks": len(chunks),
+        "expires_at": expires_at.isoformat(),
+        "ttl_minutes": GUEST_SESSION_TTL_MINUTES,
+    }
+
+
+@app.delete("/chat/guest/collection/{collection_id}")
+def guest_release(collection_id: str, request: Request):
+    """Called by the frontend when the modal closes. Best-effort cleanup."""
+    with _guest_lock:
+        known = collection_id in _guest_collections
+        _guest_collections.pop(collection_id, None)
+    if not known:
+        # Unknown or already expired; don't leak whether it existed.
+        return {"released": False}
+    try:
+        delete_collection_chunks(collection_id)
+    except Exception:
+        logger.exception("guest release failed for %s", collection_id)
+    return {"released": True}
+
+@app.post("/chat/guest/stream")
+async def guest_chat_stream(body: GuestChatRequest, request: Request):
+    if not ENABLE_GUEST_CHAT:
+        raise HTTPException(status_code=403, detail="Guest chat is disabled")
+
+    ip = _ip(request)
+    _throttle(guest_question_limiter, ip)
+
+    if not _guest_collection_valid(body.collection_id):
+        raise HTTPException(status_code=410,
+                            detail="This upload has expired. Please upload the document again.")
+
+    question = (body.question or "").strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question is empty")
+    if len(question) > 2000:
+        raise HTTPException(status_code=400, detail="Question is too long")
+
+    allowed, reason, flags = check_user_input(question, max_chars=2000, block_extraction=True)
+    if not allowed:
+        audit_store.log("guest_question_blocked", ip=ip, detail={"reason": reason})
+        payload = json.dumps({"type": "final", "answer": POLICY_BLOCK_MESSAGE,
+                              "sources": [], "trace": [f"Policy gate: blocked ({reason})"]}) + "\n"
+        return StreamingResponse(iter([payload]), media_type="application/x-ndjson")
+
+    _check_embeddings()
+    retriever = build_org_retriever("guest", [body.collection_id], k=RERANK_CANDIDATE_K)
+
+    graph_input = {
+        "question": question, "search_query": "", "retrieved_docs": [], "relevant_docs": [],
+        "rewrite_count": 0, "answer": "", "trace": [], "tool_used": "", "sources": [],
+        "faithfulness_verdict": "", "regenerated": False, "security_events": [],
+    }
+    guest_thread_id = f"guest-{uuid.uuid4().hex}"
+    config = {"configurable": {
+        "thread_id": guest_thread_id,
+        "user_id": f"guest:{ip}",
+        "retriever": retriever,
+        "top_k": 4,
+        "force_offline": False,
+        "guardrails": guardrail_policy.get_policy(None),
+        "scope": f"guest:{body.collection_id}",
+    }}
+
+    def emit(obj: dict) -> str:
+        return json.dumps(obj) + "\n"
+
+    async def event_stream():
+        state: dict = {}
+        try:
+            # graph.stream(...) is sync; run it in a thread so we can await between chunks.
+            import asyncio
+            loop = asyncio.get_running_loop()
+            gen = compiled_graph.stream(graph_input, config=config, stream_mode=["updates", "messages"])
+
+            def _next():
+                try:
+                    return next(gen)
+                except StopIteration:
+                    return None
+
+            while True:
+                # Before pulling the next event, check whether the client left.
+                if await request.is_disconnected():
+                    logger.info("guest stream: client disconnected, aborting (thread=%s)", guest_thread_id)
+                    gen.close()           # signal the graph we're done
+                    return
+
+                item = await loop.run_in_executor(None, _next)
+                if item is None:
+                    break
+
+                mode, payload = item
+                if mode == "updates":
+                    for _node, update in payload.items():
+                        if not update:
+                            continue
+                        state.update(update)
+                        if "trace" in update:
+                            yield emit({"type": "trace", "trace": update["trace"]})
+                        if update.get("faithfulness_verdict") == "UNSUPPORTED":
+                            yield emit({"type": "reset"})
+                else:
+                    chunk, meta = payload
+                    if meta.get("langgraph_node") in STREAM_NODES and isinstance(chunk.content, str) and chunk.content:
+                        yield emit({"type": "token", "text": chunk.content})
+
+            answer = state.get("answer", "")
+            sources = state.get("sources", [])
+            trace = state.get("trace", [])
+            yield emit({"type": "final", "answer": answer, "sources": sources, "trace": trace, "message_id": None})
+        except Exception as exc:
+            logger.exception("Guest streaming chat failed")
+            yield emit({"type": "error", "detail": str(exc)})
+
+    return StreamingResponse(event_stream(), media_type="application/x-ndjson")

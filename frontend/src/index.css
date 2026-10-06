@@ -1,41 +1,142 @@
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
+/* =====================================================================
+   DARK MODE (default)
+   ===================================================================== */
 @theme {
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Instrument Serif", Georgia, serif;
 
-  --color-canvas: #121211;
-  --color-surface: #1b1b19;
-  --color-surface-2: #242421;
-  --color-border: #33332e;
-  --color-ink: #f2efe8;
-  --color-muted: #9b988d;
+  /* Surfaces */
+  --color-canvas:    #000000;   /* page */
+  --color-surface:   #0b0f14;   /* cards / navbar / sidebar (near-black, cool) */
+  --color-surface-2: #141b24;   /* hover / inputs */
+  --color-surface-3: #1c2530;   /* highest elevation */
 
-  /* The only accent color. Change these two lines to restyle the whole app. */
-  --color-accent: #d97757;
-  --color-accent-hover: #e48a6d;
+  /* Text */
+  --color-ink:   #ffe8db;              /* peach — main text on dark */
+  --color-muted: rgba(255, 232, 219, 0.62);
+  --color-faint: rgba(255, 232, 219, 0.38);
 
-  /* Used only for error messages and destructive buttons. */
-  --color-danger: #e06c5c;
+  /* Border */
+  --color-border: rgba(115, 158, 201, 0.18);   /* soft blue tint */
+
+  /* Accent = peach (buttons look like cream-on-black) */
+  --color-accent:       #ffe8db;
+  --color-accent-hover: #fff3ec;
+
+  /* Secondary = blue (links, badges, focus rings) */
+  --color-blue:       #739ec9;
+  --color-blue-hover: #8fb3d6;
+  --color-blue-deep:  #5682b1;
+
+  /* Feedback */
+  --color-danger:  #e08975;
+  --color-success: #86b98c;
+
+  /* Radii */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  /* Shadows — soft, no glow */
+  --shadow-soft:  0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.35);
+  --shadow-glass: 0 6px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,232,219,0.04);
 }
 
-html {
-  color-scheme: dark;
+/* =====================================================================
+   LIGHT MODE
+   ===================================================================== */
+[data-theme="light"] {
+  --color-canvas:    #ffe8db;   /* peach page */
+  --color-surface:   #fff5ef;   /* lighter than canvas */
+  --color-surface-2: #fbe2d4;   /* slightly deeper peach */
+  --color-surface-3: #f6d7c6;
+
+  --color-ink:   #000000;
+  --color-muted: rgba(0, 0, 0, 0.62);
+  --color-faint: rgba(0, 0, 0, 0.38);
+
+  --color-border: rgba(86, 130, 177, 0.22);
+
+  /* In light mode the accent flips to blue */
+  --color-accent:       #5682b1;
+  --color-accent-hover: #436994;
+
+  --color-blue:       #5682b1;
+  --color-blue-hover: #436994;
+  --color-blue-deep:  #3a5a80;
+
+  --color-danger:  #b1573f;
+  --color-success: #4f7a55;
+
+  --shadow-soft:  0 1px 2px rgba(0,0,0,.06), 0 8px 24px rgba(86,130,177,.10);
+  --shadow-glass: 0 6px 30px rgba(86,130,177,.14), inset 0 1px 0 rgba(255,255,255,0.5);
 }
 
-html,
-body,
-#root {
-  height: 100%;
-}
+/* =====================================================================
+   Base
+   ===================================================================== */
+html, body, #root { height: 100%; }
+html { color-scheme: dark; }
+[data-theme="light"] { color-scheme: light; }
 
 body {
   margin: 0;
-  background-color: var(--color-canvas);
+  background-color: var(--color-canvas);      /* flat — no gradient */
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 200ms ease, color 200ms ease;
 }
+
+/* ---------- Glass (flat frosted, no glow) ---------- */
+.glass {
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+}
+.glass-strong {
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  box-shadow: var(--shadow-glass);
+}
+.glass-input {
+  background: color-mix(in srgb, var(--color-surface-2) 60%, transparent);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(12px);
+}
+
+/* Primary button glow removed — flat shadow only */
+.btn-glow { box-shadow: var(--shadow-soft); }
+
+/* ---------- Scrollbar ---------- */
+* { scrollbar-width: thin; scrollbar-color: var(--color-surface-3) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--color-surface-3);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--color-blue-deep); background-clip: content-box; }
+
+/* ---------- Motion ---------- */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fadeUp 220ms cubic-bezier(.2,.7,.2,1) both; }
+
+@keyframes pulseSoft {
+  0%, 100% { opacity: .55; }
+  50%      { opacity: 1; }
+}
+.animate-pulse-soft { animation: pulseSoft 1.4s ease-in-out infinite; }

@@ -42,7 +42,7 @@ export default function ChatPage() {
     const leaving = threadId;
     return () => {
       if (leaving && messageCount.current) {
-        api(`/threads/${leaving}/finalize`, { method: 'POST' }).catch(() => {});
+        api(`/threads/${leaving}/finalize`, { method: 'POST' }).catch(() => { });
       }
     };
   }, [threadId]);
@@ -107,11 +107,11 @@ export default function ChatPage() {
     } finally {
       streaming.current = false;
       setBusy(false);
-      refreshThreads().catch(() => {});
+      refreshThreads().catch(() => { });
       // Reload saved messages so they have ids (needed for feedback).
       // Skip if the user has already moved to a different chat.
       if (id && currentId.current === id) {
-        api(`/threads/${id}/messages`).then(setMessages).catch(() => {});
+        api(`/threads/${id}/messages`).then(setMessages).catch(() => { });
       }
     }
   }
@@ -134,18 +134,34 @@ export default function ChatPage() {
 
   return (
     <>
-      <header className="border-b border-border px-6 py-4">
-        <div className="font-semibold">{current?.title || 'New chat'}</div>
-        <div className="text-xs text-muted">{scope}</div>
+      <header className="glass sticky top-0 z-10 flex items-center justify-between border-b border-white/5 px-6 py-4">
+        <div className="min-w-0">
+          <div className="truncate font-display text-2xl leading-tight">{current?.title || 'New chat'}</div>
+          <div className="truncate text-xs text-muted">{scope}</div>
+        </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-8">
         {messages.length === 0 && (
-          <div className="m-auto max-w-md text-center">
-            <h2 className="mb-2 text-xl font-semibold">Ask your documents anything</h2>
-            <p className="text-sm text-muted">
+          <div className="m-auto max-w-md text-center animate-fade-up">
+            <div className="mx-auto mb-5 grid h-12 w-12 place-items-center rounded-2xl glass text-accent">
+              <Send size={20} strokeWidth={1.75} />
+            </div>
+            <h2 className="font-display text-4xl leading-tight">Ask your documents anything</h2>
+            <p className="mt-3 text-sm text-muted">
               Answers come only from the collections you can read. Each answer shows its source and the exact sentence it used.
             </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              {['Summarise the latest policy', 'What is our leave policy?', 'Compare Q3 and Q4 reports'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setInput(s)}
+                  className="glass rounded-full px-3.5 py-1.5 text-xs text-muted transition hover:text-ink"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -155,30 +171,24 @@ export default function ChatPage() {
         <div ref={bottom} />
       </div>
 
-      {error && <p className="px-6 text-sm text-danger">{error}</p>}
+      {error && <p className="px-6 pb-2 text-sm text-danger">{error}</p>}
 
       <form
-        className="flex gap-3 border-t border-border bg-surface px-6 py-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
+        className="glass sticky bottom-0 flex items-end gap-3 border-t border-white/5 bg-black/20 px-6 py-4"
+        onSubmit={(e) => { e.preventDefault(); send(); }}
       >
         <Textarea
           rows={2}
-          className="flex-1 resize-none"
-          placeholder="Ask about your documents… (Enter to send, Shift+Enter for a new line)"
+          className="flex-1 resize-none !rounded-2xl !border-white/10 !bg-white/5"
+          placeholder="Ask about your documents..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
           }}
         />
-        <Button variant="primary" type="submit" disabled={busy || !input.trim()} className="px-5">
-          <Send size={16} strokeWidth={2.25} color="white" />
+        <Button variant="primary" type="submit" disabled={busy || !input.trim()} size="icon" className="!h-11 !w-11">
+          <Send size={16} strokeWidth={2.25} className="translate-y-px" />
         </Button>
       </form>
     </>

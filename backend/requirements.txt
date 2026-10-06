@@ -1,21 +1,30 @@
+# Runtime only. Before deploying run `pip freeze` inside your working venv and pin the
+# versions of the lines below (name==version). Unpinned installs are how "works on my Mac,
+# breaks on the server" happens.
 fastapi
-FlashRank
-langchain_chroma
-langchain_core
-langchain_groq
-langchain_huggingface
-langchain_text_splitters
-langgraph
-passlib
-pydantic
+uvicorn
+python-multipart
+sqlalchemy
+psycopg[binary]>=3.1
+psycopg-pool>=3.2
 PyJWT
-pypdf
+passlib[bcrypt]
+bcrypt==4.0.1
 python-dotenv
-scikit_learn
-sentence_transformers
-streamlit
-rank-bm25
-openpyxl
-python-docx
+langchain-core
+langchain-postgres
+langchain-huggingface
+langchain-text-splitters
+langchain-groq
+groq
 langgraph
-langgraph-checkpoint-sqlite
+langgraph-checkpoint-postgres
+sentence-transformers
+rank-bm25
+scikit-learn
+FlashRank
+pymupdf
+pypdf
+python-docx
+openpyxl
+beautifulsoup4

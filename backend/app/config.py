@@ -59,7 +59,7 @@ if not GROQ_API_KEY:
 # --------------------------------------------------------------------------
 # Models
 # --------------------------------------------------------------------------
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
 # When HuggingFace is unreachable (blocked network, rate limit with no way
 # to authenticate), set this True to skip trying HF entirely and go
@@ -158,3 +158,38 @@ LOGIN_FAIL_LIMIT = (5, 15 * 60)       # failed logins per (ip, username)
 CHAT_LIMIT = (30, 60)                 # chat calls per user
 UPLOAD_LIMIT = (20, 60)               # upload calls per user
 FEEDBACK_LIMIT = (60, 60)             # thumbs up/down per user
+
+
+# --------------------------------------------------------------------------
+# Database Configuration
+# --------------------------------------------------------------------------
+DATABASE_URL = os.getenv("DATABASE_URL")
+IS_PG = os.getenv("IS_PG", "True").lower() in ("true", "1", "yes")
+
+# Two spellings of the same URL, because two drivers read it:
+#   DATABASE_URL     plain postgresql://            -> raw psycopg calls
+#   SQLALCHEMY_URL   postgresql+psycopg://          -> SQLAlchemy and langchain_postgres
+# Without +psycopg, SQLAlchemy loads psycopg2, which is not installed.
+SQLALCHEMY_URL = (
+    DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+    if DATABASE_URL and DATABASE_URL.startswith("postgresql://")
+    else DATABASE_URL
+)
+
+
+# --------------------------------------------------------------------------
+# Guest chat (temporary "upload your own doc" mode)
+# --------------------------------------------------------------------------
+# Turn guest chat on/off without redeploying.
+ENABLE_GUEST_CHAT = os.getenv("ENABLE_GUEST_CHAT", "false").lower() == "true"
+
+# Guests upload a document into a throwaway collection. These limits apply per IP
+# so a visitor can't hammer the server or your Groq account.
+GUEST_UPLOAD_LIMIT = (3, 60 * 60)             # 3 uploads per hour per IP
+GUEST_QUESTION_LIMIT = (20, 60 * 60)          # 20 questions per hour per IP
+GUEST_MAX_UPLOAD_MB = int(os.getenv("GUEST_MAX_UPLOAD_MB", "10"))
+GUEST_SESSION_TTL_MINUTES = int(os.getenv("GUEST_SESSION_TTL_MINUTES", "30"))
+
+# A guest's throwaway chunks are deleted when they close the modal or after
+# GUEST_SESSION_TTL_MINUTES, whichever comes first.
+GUEST_COLLECTION_PREFIX = "guest_upload_"

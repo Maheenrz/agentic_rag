@@ -34,6 +34,8 @@ def _key(org_id: str) -> str:
 
 
 def get_policy(org_id: str) -> dict:
+    if not org_id:
+        return copy.deepcopy(DEFAULT_POLICY)
     policy = copy.deepcopy(DEFAULT_POLICY)
     raw = org_store.get_setting(_key(org_id))
     if raw:
