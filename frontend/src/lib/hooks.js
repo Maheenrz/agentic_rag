@@ -22,13 +22,14 @@ export function useAsync(fn, deps = []) {
   return { data, error, reload };
 }
 
-/** Wraps a button action so errors show as an alert instead of crashing the page. */
+
+/** Wraps an action, forwarding event arguments and displaying errors. */
 export function guard(fn) {
-  return async () => {
+  return async (...args) => {
     try {
-      await fn();
+      await fn(...args);
     } catch (e) {
-      alert(e.message);
+      alert(e?.message || 'Something went wrong.');
     }
   };
 }

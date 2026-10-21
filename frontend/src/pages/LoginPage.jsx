@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Button, Input, Label } from '../components/ui';
 
 export default function LoginPage() {
   const { login } = useApp();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ username: '', password: '' });
+  const [form, setForm] = useState({ identifier: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -16,9 +15,14 @@ export default function LoginPage() {
   async function submit(e) {
     e.preventDefault();
     setError('');
+
+    const identifier = form.identifier.trim();
+    if (!identifier) return setError('Enter your username or email.');
+    if (!form.password) return setError('Enter your password.');
+
     setBusy(true);
     try {
-      await login(form.username.trim(), form.password);
+      await login(identifier, form.password);
       navigate('/chat');
     } catch (err) {
       setError(err.message);
@@ -35,8 +39,13 @@ export default function LoginPage() {
 
         <form onSubmit={submit} className="space-y-4">
           <Label>
-            Username
-            <Input className="mt-1.5" autoComplete="username" value={form.username} onChange={set('username')} />
+            Username or email
+            <Input
+              className="mt-1.5"
+              autoComplete="username"
+              value={form.identifier}
+              onChange={set('identifier')}
+            />
           </Label>
           <Label>
             Password
@@ -50,15 +59,23 @@ export default function LoginPage() {
           </Label>
 
           <Button variant="primary" type="submit" disabled={busy} className="w-full py-3">
-            {busy ? 'Please wait…' : <>Sign in </>}
+            {busy ? 'Please wait…' : 'Sign in'}
           </Button>
+
+          <div className="text-sm text-muted">
+            <Link to="/forgot-password" className="text-ink underline-offset-4 hover:underline">
+              Forgot your password?
+            </Link>
+          </div>
 
           {error && <p className="text-sm text-danger">{error}</p>}
         </form>
 
         <p className="mt-8 text-sm text-muted">
           New organisation?{' '}
-          <Link to="/register" className="text-ink underline-offset-4 transition hover:underline">Create an account</Link>
+          <Link to="/register" className="text-ink underline-offset-4 transition hover:underline">
+            Create an account
+          </Link>
         </p>
       </div>
     </div>

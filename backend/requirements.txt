@@ -1,6 +1,3 @@
-# Runtime only. Before deploying run `pip freeze` inside your working venv and pin the
-# versions of the lines below (name==version). Unpinned installs are how "works on my Mac,
-# breaks on the server" happens.
 fastapi
 uvicorn
 python-multipart
@@ -16,6 +13,8 @@ langchain-postgres
 langchain-huggingface
 langchain-text-splitters
 langchain-groq
+langchain
+langsmith
 groq
 langgraph
 langgraph-checkpoint-postgres
@@ -28,3 +27,4 @@ pypdf
 python-docx
 openpyxl
 beautifulsoup4
+email-validator

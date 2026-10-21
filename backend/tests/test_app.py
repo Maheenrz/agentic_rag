@@ -4,8 +4,10 @@ tests/test_app.py  --  the ONE test file.
 Runs the real FastAPI app against a real Postgres (pgvector) database.
 The two LLMs are replaced by small fake functions, so the tests are free and repeatable.
 
-Use a THROWAWAY database, never dev or prod:
-    export TEST_DATABASE_URL="postgresql://postgres:test@localhost:5433/postgres"
+Use a dedicated, throwaway database, never dev or prod and never the
+server's default "postgres" database -- these tests write/read freely and
+assume nothing precious is in whatever TEST_DATABASE_URL points at:
+    export TEST_DATABASE_URL="postgresql://postgres:test@localhost:5433/agentic_rag_test"
     python -m pytest -q tests/test_app.py
 """
 import os
@@ -67,12 +69,53 @@ reranker_module = types.ModuleType("app.core.reranker")
 reranker_module.rerank_documents = lambda query, docs, top_n: docs[:top_n]
 sys.modules["app.core.reranker"] = reranker_module
 
+# app.services.email._send() already no-ops instead of calling smtplib
+# whenever APP_ENV != "production" (see that module), and this file sets
+# APP_ENV=dev above specifically so that guard applies here. But that
+# guard only works if app.config is first imported AFTER this file's own
+# os.environ.update() has run -- app.config computes APP_ENV once, at
+# import time, into a plain module-level constant, so if anything else
+# importable from this same pytest session (another test module) happens
+# to import app.config first, with APP_ENV left at whatever the ambient
+# environment/.env has (e.g. a real APP_ENV=production + SMTP_HOST from
+# this project's own documented production .env), that value is cached
+# for the rest of the process and this file's later override has no
+# effect on it. Rather than depend on getting that import ordering right
+# across the whole test session, stub the email module directly -- same
+# approach already used above for app.core.llm/app.core.reranker -- so
+# app.routers.org / app.routers.auth's `from app.services.email import
+# ...` binds these no-ops regardless of APP_ENV or import order. This
+# changes nothing in app/services/email.py itself.
+email_module = types.ModuleType("app.services.email")
+email_module.send_invite_email = lambda *args, **kwargs: None
+email_module.send_reset_email = lambda *args, **kwargs: None
+email_module.send_password_changed_email = lambda *args, **kwargs: None
+sys.modules["app.services.email"] = email_module
+
 # ---------------------------------------------------------------- real app
 from app.db import init_db  # noqa: E402
 init_db()                    # creates pgvector + LangGraph tables, same as production start
 
 from fastapi.testclient import TestClient  # noqa: E402
 from app.main import app  # noqa: E402
+
+# Patch the already-imported router references too. Replacing
+# sys.modules["app.services.email"] above prevents future imports from
+# loading the real email service, but cannot replace names that a router
+# imported before this test module was collected.
+def _noop_email(*args, **kwargs):
+    return None
+
+from app.routers import org as _org_router  # noqa: E402
+from app.routers import auth as _auth_router  # noqa: E402
+
+for _module, _names in (
+    (_org_router, ("send_invite_email",)),
+    (_auth_router, ("send_reset_email", "send_password_changed_email")),
+):
+    for _name in _names:
+        if hasattr(_module, _name):
+            setattr(_module, _name, _noop_email)
 
 client = TestClient(app)
 PASSWORD = "password123"
@@ -82,23 +125,60 @@ def _new_name(prefix):
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
 
 
+
+
 def _login(username):
-    r = client.post("/auth/login", data={"username": username, "password": PASSWORD})
+    r = client.post(
+        "/auth/login",
+        json={"identifier": username, "password": PASSWORD},
+    )
     assert r.status_code == 200, r.text
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
 @pytest.fixture(scope="module")
 def people():
-    admin_name, member_name = _new_name("admin"), _new_name("member")
-    r = client.post("/auth/register", json={"username": admin_name, "password": PASSWORD,
-                                            "org_name": f"Test org {admin_name}"})
+    admin_name = _new_name("admin")
+    member_name = _new_name("member")
+
+    # Register the organization and its first admin.
+    r = client.post(
+        "/auth/register",
+        json={
+            "username": admin_name,
+            "email": f"{admin_name}@example.com",
+            "password": PASSWORD,
+            "org_name": f"Test org {admin_name}",
+        },
+    )
     assert r.status_code == 201, r.text
     admin = _login(admin_name)
-    r = client.post("/org/users", json={"username": member_name, "password": PASSWORD, "role": "member"},
-                    headers=admin)
+
+    # Admin-created users are invited and do not have passwords yet.
+    r = client.post(
+        "/org/users",
+        json={
+            "username": member_name,
+            "email": f"{member_name}@example.com",
+            "role": "member",
+        },
+        headers=admin,
+    )
     assert r.status_code == 201, r.text
-    return {"admin": admin, "member": _login(member_name)}
+
+    invite_token = r.json()["invite_token"]
+
+    # Accept the invitation and establish the member's password.
+    r = client.post(
+        "/auth/accept-invite",
+        json={"token": invite_token, "password": PASSWORD},
+    )
+    assert r.status_code == 200, r.text
+
+    return {
+        "admin": admin,
+        "member": _login(member_name),
+    }
 
 
 def _make_collection(headers, visibility="restricted"):
@@ -217,4 +297,164 @@ def test_hybrid_vector_side_finds_semantic_match(people):
     org_id = client.get("/me", headers=people["admin"]).json()["org_id"]
 
     docs = build_org_retriever(org_id, [cid], k=4).invoke("network password")
-    assert any("OMEGA-7731" in d.page_content for d in docs)    
+    assert any("OMEGA-7731" in d.page_content for d in docs)
+
+
+# ------------------------------------------------- durable cleanup (Goal #1)
+
+def test_document_deletion_verifiably_removes_vectors(people):
+    """#1: successful document deletion removes all expected vectors, and
+    the API response says so (not merely HTTP 200)."""
+    from app.rag.document_processor import count_doc_chunks
+
+    cid = _make_collection(people["admin"], visibility="org")
+    upload = _upload(people["admin"], cid, "wifi.txt", "The office wifi code is OMEGA-7731.").json()
+    doc_id = upload["results"][0]["doc_id"]
+    assert count_doc_chunks(doc_id) > 0
+
+    r = client.delete(f"/collections/{cid}/documents/{doc_id}", headers=people["admin"])
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["cleanup_status"] == "completed"
+    assert body["cleanup_pending"] is False
+    assert "job_id" in body
+
+    assert count_doc_chunks(doc_id) == 0
+
+
+def test_collection_deletion_verifiably_removes_all_collection_data(people):
+    """#2: successful collection deletion removes all expected collection
+    data, and the collection itself disappears from listings."""
+    from app.rag.document_processor import count_collection_chunks
+
+    cid = _make_collection(people["admin"], visibility="org")
+    _upload(people["admin"], cid, "a.txt", "Alpha document contents.")
+    _upload(people["admin"], cid, "b.txt", "Beta document contents.")
+    assert count_collection_chunks(cid) > 0
+
+    r = client.delete(f"/collections/{cid}", headers=people["admin"])
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["cleanup_status"] == "completed"
+
+    assert count_collection_chunks(cid) == 0
+
+    remaining = [c["collection_id"] for c in client.get("/collections", headers=people["admin"]).json()]
+    assert cid not in remaining
+
+
+def test_repeating_document_deletion_is_safe(people):
+    """#4: repeating a cleanup operation is safe. #11: an already-deleted
+    document can have cleanup retried through the same endpoint."""
+    cid = _make_collection(people["admin"], visibility="org")
+    upload = _upload(people["admin"], cid, "wifi.txt", "The office wifi code is OMEGA-7731.").json()
+    doc_id = upload["results"][0]["doc_id"]
+
+    r1 = client.delete(f"/collections/{cid}/documents/{doc_id}", headers=people["admin"])
+    assert r1.status_code == 200, r1.text
+
+    r2 = client.delete(f"/collections/{cid}/documents/{doc_id}", headers=people["admin"])
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["cleanup_status"] == "completed"
+
+
+def test_repeating_collection_deletion_after_it_is_gone_is_404(people):
+    """A collection delete retried after it has already fully finalized
+    has nothing left to retry -- same semantics as a document that no
+    longer exists at all."""
+    cid = _make_collection(people["admin"], visibility="org")
+    _upload(people["admin"], cid, "a.txt", "Alpha document contents.")
+
+    r1 = client.delete(f"/collections/{cid}", headers=people["admin"])
+    assert r1.status_code == 200, r1.text
+    assert r1.json()["cleanup_status"] == "completed"
+
+    r2 = client.delete(f"/collections/{cid}", headers=people["admin"])
+    assert r2.status_code == 404, r2.text
+
+
+def test_unauthorized_cross_tenant_delete_is_rejected(people):
+    """#10: a user from a different org cannot delete another tenant's
+    collection or document, even by guessing/reusing a valid id."""
+    cid = _make_collection(people["admin"], visibility="org")
+    upload = _upload(people["admin"], cid, "secret.txt", "Only this org should see this.").json()
+    doc_id = upload["results"][0]["doc_id"]
+
+    other_admin_name = _new_name("admin")
+    r = client.post(
+        "/auth/register",
+        json={
+            "username": other_admin_name,
+            "email": f"{other_admin_name}@example.com",
+            "password": PASSWORD,
+            "org_name": f"Other org {other_admin_name}",
+        },
+    )
+    assert r.status_code == 201, r.text
+    other_admin = _login(other_admin_name)
+
+    r = client.delete(f"/collections/{cid}/documents/{doc_id}", headers=other_admin)
+    assert r.status_code == 404
+
+    r = client.delete(f"/collections/{cid}", headers=other_admin)
+    assert r.status_code == 404
+
+    # Nothing was touched: the owning org can still delete it normally.
+    r = client.delete(f"/collections/{cid}/documents/{doc_id}", headers=people["admin"])
+    assert r.status_code == 200, r.text
+
+
+def test_collection_deletion_does_not_touch_an_unrelated_collection(people):
+    """#14: collection deletion handles related references without
+    damaging unrelated data."""
+    from app.rag.document_processor import build_org_retriever
+
+    cid_doomed = _make_collection(people["admin"], visibility="org")
+    cid_survivor = _make_collection(people["admin"], visibility="org")
+    _upload(people["admin"], cid_doomed, "doomed.txt", "This collection is going away.")
+    _upload(people["admin"], cid_survivor, "survivor.txt", "This collection must survive deletion of the other one.")
+
+    r = client.delete(f"/collections/{cid_doomed}", headers=people["admin"])
+    assert r.status_code == 200, r.text
+
+    org_id = client.get("/me", headers=people["admin"]).json()["org_id"]
+    docs = build_org_retriever(org_id, [cid_survivor], k=4).invoke("survive deletion")
+    assert any("survive" in d.page_content for d in docs)
+
+    remaining = [c["collection_id"] for c in client.get("/collections", headers=people["admin"]).json()]
+    assert cid_survivor in remaining
+    assert cid_doomed not in remaining
+
+
+def test_cleanup_status_endpoint_reports_completed_job(people):
+    """#13: API responses reflect the real cleanup status, and stay
+    checkable even after the document disappears from the normal list."""
+    cid = _make_collection(people["admin"], visibility="org")
+    upload = _upload(people["admin"], cid, "wifi.txt", "The office wifi code is OMEGA-7731.").json()
+    doc_id = upload["results"][0]["doc_id"]
+
+    client.delete(f"/collections/{cid}/documents/{doc_id}", headers=people["admin"])
+
+    docs_now = [d["doc_id"] for d in client.get(f"/collections/{cid}/documents", headers=people["admin"]).json()]
+    assert doc_id not in docs_now
+
+    r = client.get(f"/collections/{cid}/documents/{doc_id}/cleanup-status", headers=people["admin"])
+    assert r.status_code == 200, r.text
+    assert r.json()["cleanup_status"] == "completed"
+
+    jobs = client.get(f"/collections/{cid}/cleanup-jobs", headers=people["admin"]).json()
+    assert any(job["target_id"] == doc_id and job["status"] == "completed" for job in jobs)
+
+
+def test_member_cannot_delete_without_write_access(people):
+    """Existing access control must still hold: a member with only read
+    access to a restricted collection cannot delete from it."""
+    cid = _make_collection(people["admin"])  # restricted by default
+    upload = _upload(people["admin"], cid, "a.txt", "Alpha document contents.").json()
+    doc_id = upload["results"][0]["doc_id"]
+
+    r = client.delete(f"/collections/{cid}/documents/{doc_id}", headers=people["member"])
+    assert r.status_code in (403, 404)
+
+    r = client.delete(f"/collections/{cid}", headers=people["member"])
+    assert r.status_code == 403
