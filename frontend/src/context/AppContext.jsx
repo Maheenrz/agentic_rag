@@ -1,4 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { api, getToken, saveToken } from '../lib/api';
 
 const AppContext = createContext(null);
@@ -7,22 +13,36 @@ export function AppProvider({ children }) {
   const [me, setMe] = useState(null);
   const [threads, setThreads] = useState([]);
   const [collections, setCollections] = useState([]);
-  const [selected, setSelected] = useState([]);   // collection ids; empty = search everything
+  const [selected, setSelected] = useState([]);
   const [ready, setReady] = useState(false);
 
   const refreshThreads = useCallback(async () => {
-    setThreads(await api('/threads'));
+    const result = await api('/threads');
+    setThreads(Array.isArray(result) ? result : []);
   }, []);
 
   const refreshCollections = useCallback(async () => {
-    const list = await api('/collections');
+    const result = await api('/collections');
+    const list = Array.isArray(result) ? result : [];
+
     setCollections(list);
-    setSelected((s) => s.filter((id) => list.some((c) => c.collection_id === id)));
+    setSelected((current) =>
+      current.filter((id) =>
+        list.some((collection) => collection.collection_id === id)
+      )
+    );
   }, []);
 
   const loadSession = useCallback(async () => {
-    setMe(await api('/me'));
-    await Promise.all([refreshThreads(), refreshCollections()]);
+    const user = await api('/me');
+    setMe(user);
+
+    await Promise.all([
+      refreshThreads(),
+      refreshCollections(),
+    ]);
+
+    return user;
   }, [refreshThreads, refreshCollections]);
 
   const logout = useCallback(() => {
@@ -33,54 +53,122 @@ export function AppProvider({ children }) {
     setSelected([]);
   }, []);
 
-  const login = useCallback(async (username, password) => {
+  const login = useCallback(async (identifier, password) => {
     const data = await api('/auth/login', {
       method: 'POST',
-      form: new URLSearchParams({ username, password }),
+      body: { identifier, password },
     });
+
+    if (!data?.access_token) {
+      throw new Error('Login did not return an access token.');
+    }
+
     saveToken(data.access_token);
-    await loadSession();
+
+    try {
+      await loadSession();
+    } catch (error) {
+      saveToken(null);
+      setMe(null);
+      setThreads([]);
+      setCollections([]);
+      setSelected([]);
+      throw error;
+    }
   }, [loadSession]);
 
-  const register = useCallback(async (username, password, org_name) => {
+  const register = useCallback(async ({
+    username,
+    email,
+    password,
+    org,
+  }) => {
     await api('/auth/register', {
       method: 'POST',
-      body: { username, password, org_name: org_name || null },
+      body: {
+        username,
+        email,
+        password,
+        org_name: org || null,
+      },
     });
+
     await login(username, password);
   }, [login]);
 
   const toggleCollection = useCallback((id) => {
-    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+    setSelected((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id]
+    );
   }, []);
 
-  // Restore an existing session when the page loads.
   useEffect(() => {
-    if (!getToken()) {
-      setReady(true);
-      return;
+    let active = true;
+
+    async function restoreSession() {
+      if (!getToken()) {
+        if (active) setReady(true);
+        return;
+      }
+
+      try {
+        await loadSession();
+      } catch {
+        saveToken(null);
+        if (active) {
+          setMe(null);
+          setThreads([]);
+          setCollections([]);
+          setSelected([]);
+        }
+      } finally {
+        if (active) setReady(true);
+      }
     }
-    loadSession()
-      .catch(() => saveToken(null))
-      .finally(() => setReady(true));
+
+    restoreSession();
+
+    return () => {
+      active = false;
+    };
   }, [loadSession]);
 
-  // api() fires this on any 401, which ends the session.
   useEffect(() => {
     window.addEventListener('auth:expired', logout);
-    return () => window.removeEventListener('auth:expired', logout);
+    return () => {
+      window.removeEventListener('auth:expired', logout);
+    };
   }, [logout]);
 
   const value = {
-    me, threads, collections, selected, toggleCollection,
-    refreshThreads, refreshCollections, login, register, logout, ready,
+    me,
+    threads,
+    collections,
+    selected,
+    toggleCollection,
+    refreshThreads,
+    refreshCollections,
+    login,
+    register,
+    logout,
+    ready,
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+    </AppContext.Provider>
+  );
 }
 
 export function useApp() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be used inside AppProvider');
-  return ctx;
+  const context = useContext(AppContext);
+
+  if (!context) {
+    throw new Error('useApp must be used inside AppProvider');
+  }
+
+  return context;
 }

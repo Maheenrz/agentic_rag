@@ -12,7 +12,8 @@
         18
       ],
       "hard_negative_pages": [],
-      "tests": "retrieval"
+      "tests": "retrieval",
+      "evidence": "[PDF page 18] EC-Council What Does a Malicious Hacker Do? ~Reconnaissance • Active / passive ~Scanning ~Gaining access • Operating system level / application level • Network level • Denial of service ~Maintaining access • Uploading / altering / downloading programs or data ~Covering tracks Clearing Tracks Maintaining Access Gaining Access Scanning Reconnaissance"
     },
     {
       "id": "Q02",
@@ -24,7 +25,8 @@
         15
       ],
       "hard_negative_pages": [],
-      "tests": "retrieval"
+      "tests": "retrieval",
+      "evidence": "[PDF page 15] EC-Council Can Hacking Be Ethical? ~ The noun ‘hacker’ refers to a person who enjoys learning the details of computer systems and stretch their capabilities. ~ The verb ‘hacking’ describes the rapid development of new programs or the reverse engineering of already existing software to make the code better, and efficient. ~ The term ‘cracker’ refers to a person who uses his hacking skills for offensive purposes. ~ The term ‘ethical hacker’ refers to security professionals who apply their hacking skills for defensive purposes."
     },
     {
       "id": "Q03",
@@ -38,7 +40,8 @@
       "hard_negative_pages": [
         16
       ],
-      "tests": "retrieval,faithfulness"
+      "tests": "retrieval,faithfulness",
+      "evidence": "[PDF page 17] EC-Council Elements of Security ~ Security is a state of well-being of information and infrastructures in which the possibility of successful yet undetected theft, tampering, and disruption of information and services is kept low or tolerable ~ Any hacking event will affect any one or more of the essential security elements. ~ Security rests on confidentiality, authenticity, integrity, and availability • Confidentiality is the concealment of information or resources. • Authenticity is the identification and assurance of the origin of information. • Integrity refers to the trustworthiness of data or resources in terms of preventing improper and unauthorized changes. • Availability refers to the ability to use the information or resource desired"
     },
     {
       "id": "Q04",
@@ -52,7 +55,8 @@
       "hard_negative_pages": [
         53
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 54] EC-Council Defining Footprinting ~ Footprinting is the blueprinting of the security profile of an organization, undertaken in a methodological manner. ~ Footprinting is one of the three pre-attack phases. The others are scanning and enumeration. ~ Footprinting results in a unique organization profile with respect to networks (Internet / Intranet / Extranet / Wireless) and systems involved."
     },
     {
       "id": "Q05",
@@ -67,7 +71,8 @@
         55,
         76
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 54] EC-Council Defining Footprinting ~ Footprinting is the blueprinting of the security profile of an organization, undertaken in a methodological manner. ~ Footprinting is one of the three pre-attack phases. The others are scanning and enumeration. ~ Footprinting results in a unique organization profile with respect to networks (Internet / Intranet / Extranet / Wireless) and systems involved."
     },
     {
       "id": "Q06",
@@ -82,7 +87,8 @@
         60,
         61
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 63] EC-Council Traceroute ~ Traceroute works by exploiting a feature of the Internet Protocol called TTL, or Time To Live. ~ Traceroute reveals the path IP packets travel between two systems by sending out consecutive UDP packets with ever-increasing TTLs . ~ As each router processes a IP packet, it decrements the TTL. When the TTL reaches zero, it sends back a \"TTL exceeded\" message (using ICMP) to the originator. ~ Routers with DNS entries reveal the name of routers, network affiliation and geographic location."
     },
     {
       "id": "Q07",
@@ -98,7 +104,8 @@
         86,
         87
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 85] EC-Council TCP three-way handshake 1. SYN sent from Client 2. SYN/ACK sent from Server 3. ACK sent from Client\n\n[PDF page 299] EC-Council TCP Concepts 3 Way Handshake 1. Bob Initiates a connection with the server. Bob sends a packet to the server with SYN bit set. 2. The server receives this packet and sends back a packet with the SYN bit and an ISN (Initial Sequence Number) for the server. 3. Bob sets the ACK bit acknowledging the receipt of the packet and increments the sequence number by 1 4. The two machines have successfully established a session. 1 2 3"
     },
     {
       "id": "Q08",
@@ -111,7 +118,8 @@
         93
       ],
       "hard_negative_pages": [],
-      "tests": "retrieval,rerank,multi-page"
+      "tests": "retrieval,rerank,multi-page",
+      "evidence": "[PDF page 92] EC-Council Active Stack Fingerprinting ~ Fingerprinting is done to determine the remote OS ~ Allows attacker to leave smaller footprint and have greater chance to succeed ~ Based on the fact that various OS vendors implement the TCP stack differently ~ Specially crafted packets sent to remote OS and response is noted. This is compared with a database to determine the OS\n\n[PDF page 93] EC-Council Passive Fingerprinting ~ Passive fingerprinting is also based on the differential implantation of the stack and the various ways an OS responds to it. ~ However, instead of relying on scanning the target host, passive fingerprinting captures packets from the target host and study it for tell tale signs that can reveal the OS. ~ Passive fingerprinting is less accurate than active fingerprinting."
     },
     {
       "id": "Q09",
@@ -126,7 +134,8 @@
         104,
         105
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 106] EC-Council Null Session Countermeasure ~ Null sessions require access to TCP 139 and/ or TCP 445 ports. ~ You could also disable SMB services entirely on individual hosts by unbinding WINS Client TCP/IP from the interface. ~ Edit the registry to restrict the anonymous user. • 1. Open regedt32, navigate to HKLM\\SYSTEM\\CurrentControlSet\\LSA • 2. Choose edit | add value • value name: ResticAnonymous • Data Type: REG_WORD • Value: 2"
     },
     {
       "id": "Q10",
@@ -140,7 +149,8 @@
       "hard_negative_pages": [
         110
       ],
-      "tests": "retrieval"
+      "tests": "retrieval",
+      "evidence": "[PDF page 113] EC-Council SNMP Enumeration Countermeasures ~ Simplest way to prevent such activity is to remove the SNMP agent or turn off the SNMP service. ~ If shutting off SNMP is not an option, then change the default 'public' community name. ~ Implement the Group Policy security option called Additional restrictions for anonymous connections. ~ Access to null session pipes and null session shares, and IPSec filtering should also be restricted."
     },
     {
       "id": "Q11",
@@ -155,7 +165,8 @@
         254,
         256
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 255] EC-Council Types of denial of service attacks ~ There are several general categories of DoS attacks. ~ Popularly, the attacks are divided into three classes: • bandwidth attacks, • protocol attacks, and • logic attacks."
     },
     {
       "id": "Q12",
@@ -170,7 +181,8 @@
         259,
         261
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 260] EC-Council Hacking Tool: Smurf ~ Smurf is a DoS attack involving forged ICMP packets sent to a broadcast address. ~ Attackers spoof the source address on ICMP echo requests and sending them to an IP broadcast address. This causes every machine on the broadcast network to receive the reply and respond back to the source address that was forged by the attacker. 1. An attacker starts a forged ICMP packet-source address with broadcast as the destination. 2. All the machines on the segment receives the broadcast and replies to the forged source address. 3. This results in DoS due to high network traffic."
     },
     {
       "id": "Q13",
@@ -185,7 +197,8 @@
         85,
         260
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 261] EC-Council SYN Flood ~ SYN attack floods a targeted system with a series of SYN packets. ~ Each packet causes the targeted system to issue a SYN- ACK response, while the targeted system waits for the ACK that follows the SYN-ACK, it queues up all outstanding SYN-ACK responses on what is known as a backlog queue. ~ SYN-ACKs are moved of the queue only when an ACK comes back or when an internal timer (which is set at relatively long intervals) terminates the TCP three-way handshake ~ Once the queue is full, the system will ignore all incoming SYN requests, making the system unavailable for legitimate users."
     },
     {
       "id": "Q14",
@@ -200,7 +213,8 @@
         268,
         272
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 269] EC-Council Hacking Tool: Trinoo ~ Trinoo is a DDOS attack tool. It uses the following TCP Ports: • Attacker to master: 27665/tcp • Master to daemon: 27444/udp • Daemon to master: 31335/udp ~ Daemons reside on the systems that launch that the attack, and masters control the daemon systems. ~ Since Trinoo uses TCP, it can be easily detected and disabled."
     },
     {
       "id": "Q15",
@@ -215,7 +229,8 @@
         268,
         270
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 272] EC-Council Hacking Tool: Stacheldraht ~ Stacheldraht combines the features of TFN and Trinoo but adds encryption layer between daemons. ~ Stacheldraht uses TCP and ICMP on the following ports: Client to Handler: 16660 TCP Handler to and from agents: 65000 ICMP"
     },
     {
       "id": "Q16",
@@ -230,7 +245,8 @@
         280,
         281
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 288] EC-Council Reverse Social Engineering ~ More advanced method of gaining illicit information is known as \"reverse social engineering\" ~ This is when the hacker creates a persona that appears to be in a position of authority so that employees will ask him for information, rather than the other way around. ~ The three parts of reverse social engineering attacks are sabotage, advertising and assisting."
     },
     {
       "id": "Q17",
@@ -245,7 +261,8 @@
       "hard_negative_pages": [
         298
       ],
-      "tests": "retrieval,rerank,multi-page"
+      "tests": "retrieval,rerank,multi-page",
+      "evidence": "[PDF page 295] EC-Council Spoofing Vs Hijacking A spoofing attack is different from a hijack in that an attacker is not actively taking another user offline to perform the attack. he pretends to be another user or machine to gain access. Bob (Victim) Server I am Bob!\n\n[PDF page 296] EC-Council Spoofing Vs Hijacking With Hijacking an attacker is taking over an existing session, which means he is relying on the legitimate user to make a connection and authenticate. Then take over the session. I am Bob! Bob (Victim) Attacker Server Bob logs on to server Dial in"
     },
     {
       "id": "Q18",
@@ -260,7 +277,8 @@
         295,
         296
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 298] EC-Council Types of session Hijacking There are two types of hijacking attacks: ~ Active • In an active attack, an attacker finds an active session and takes over. ~ Passive • With a passive attack, an attacker hijacks a session, but sits back and watches and records all of the traffic that is being sent forth."
     },
     {
       "id": "Q19",
@@ -274,7 +292,8 @@
       "hard_negative_pages": [
         308
       ],
-      "tests": "retrieval"
+      "tests": "retrieval",
+      "evidence": "[PDF page 309] EC-Council Protecting against Session Hijacking 1. Use Encryption 2. Use a secure protocol 3. Limit incoming connections 4. Minimize remote access 5. Have strong authentication."
     },
     {
       "id": "Q20",
@@ -288,7 +307,8 @@
       "hard_negative_pages": [
         395
       ],
-      "tests": "retrieval"
+      "tests": "retrieval",
+      "evidence": "[PDF page 394] EC-Council Shutting Down SQL Server ~ One of SQL Server's most powerful commands is SHUTDOWN WITH NOWAIT, which causes it to shutdown, immediately stopping the Windows service. Username: ' ; shutdown with nowait; -- Password [Anything] ~ This can happen if the script runs the following query: select userName from users where userName='; shutdown with nowait;-' and user_Pass=' '"
     },
     {
       "id": "Q21",
@@ -300,7 +320,8 @@
         402
       ],
       "hard_negative_pages": [],
-      "tests": "retrieval"
+      "tests": "retrieval",
+      "evidence": "[PDF page 402] EC-Council Preventive Measures ~ Minimize Privileges of Database Connection ~ Disable verbose error messages ~ Protect the system account ‘sa’ ~ Audit Source Code • Escape Single Quotes • Allow only good input • Reject known bad input • Restrict length of input"
     },
     {
       "id": "Q22",
@@ -315,7 +336,8 @@
         526,
         528
       ],
-      "tests": "retrieval"
+      "tests": "retrieval",
+      "evidence": "[PDF page 527] EC-Council Exploitation ~ Buffer overflow attacks depend on two things: the lack of boundary testing and a machine that can execute code that resides in the data/stack segment. ~ The lack of boundary is very common and usually the program ends with segmentation fault or bus error. In order to exploit buffer overflow to gain access or escalate privileges, the offender must create the data to be fed to the application. ~ Random data will generate a segmentation fault or bus error, never a remote shell or the execution of a command."
     },
     {
       "id": "Q23",
@@ -328,7 +350,8 @@
         552
       ],
       "hard_negative_pages": [],
-      "tests": "retrieval,multi-page,faithfulness"
+      "tests": "retrieval,multi-page,faithfulness",
+      "evidence": "[PDF page 551] EC-Council MD5 ~ The MD5 algorithm takes as input a message of arbitrary length and produces as output a 128- bit \"fingerprint\" or \"message digest\" digest of the input. ~ The MD5 algorithm is intended for digital signature applications, where a large file must be \"compressed\" in a secure manner before being encrypted with a private (secret) key under a public-key cryptosystem such as RSA.\n\n[PDF page 552] EC-Council SHA (Secure Hash Algorithm) ~ The SHA algorithm takes as input a message of arbitrary length and produces as output a 160- bit \" fingerprint\" or \"message digest\" of the input. ~ The algorithm is slightly slower than MD5, but the larger message digest makes it more secret against brute-force collision and inversion attacks."
     },
     {
       "id": "Q24",
@@ -345,7 +368,8 @@
         47,
         48
       ],
-      "tests": "retrieval,rerank"
+      "tests": "retrieval,rerank",
+      "evidence": "[PDF page 38] EC-Council Penalties (A) in the case of an offense that does not occur after a conviction for another offense under this section-- • (i) if the offense is under paragraph (1), (2), (3), (6), (7), or (10) of subsection (a), a fine under this title or imprisonment for not more than 10 years, or both; and • (ii) if the offense is under paragraph (4), (5), (8), or (9) of subsection (a), a fine under this title or imprisonment for not more than 15 years, or both; (B) in the case of an offense that occurs after a conviction for another offense under this section, a fine under this title or imprisonment for not more than 20 years, or both; and (C) in either case, forfeiture to the United States of any personal property used or intended to be used to commit the offense."
     },
     {
       "id": "Q25",
@@ -355,7 +379,8 @@
       "gold_answer": "I couldn't find that information in the uploaded documents.",
       "gold_pages": [],
       "hard_negative_pages": [],
-      "tests": "grader,rewrite-loop,no-answer,hallucination"
+      "tests": "grader,rewrite-loop,no-answer,hallucination",
+      "evidence": ""
     },
     {
       "id": "Q26",
@@ -365,7 +390,8 @@
       "gold_answer": "I couldn't find that information in the uploaded documents.",
       "gold_pages": [],
       "hard_negative_pages": [],
-      "tests": "grader,rewrite-loop,no-answer,hallucination"
+      "tests": "grader,rewrite-loop,no-answer,hallucination",
+      "evidence": ""
     },
     {
       "id": "Q27",
@@ -375,7 +401,8 @@
       "gold_answer": "I couldn't find that information in the uploaded documents.",
       "gold_pages": [],
       "hard_negative_pages": [],
-      "tests": "grader,rewrite-loop,no-answer,hallucination"
+      "tests": "grader,rewrite-loop,no-answer,hallucination",
+      "evidence": ""
     },
     {
       "id": "Q28",
@@ -385,7 +412,8 @@
       "gold_answer": "I couldn't find that information in the uploaded documents.",
       "gold_pages": [],
       "hard_negative_pages": [],
-      "tests": "grader,rewrite-loop,no-answer,hallucination"
+      "tests": "grader,rewrite-loop,no-answer,hallucination",
+      "evidence": ""
     },
     {
       "id": "Q29",
@@ -395,7 +423,8 @@
       "gold_answer": "I couldn't find that information in the uploaded documents.",
       "gold_pages": [],
       "hard_negative_pages": [],
-      "tests": "grader,rewrite-loop,no-answer,hallucination"
+      "tests": "grader,rewrite-loop,no-answer,hallucination",
+      "evidence": ""
     },
     {
       "id": "Q30",
@@ -405,7 +434,346 @@
       "gold_answer": "I couldn't find that information in the uploaded documents.",
       "gold_pages": [],
       "hard_negative_pages": [],
-      "tests": "grader,rewrite-loop,no-answer,hallucination"
+      "tests": "grader,rewrite-loop,no-answer,hallucination",
+      "evidence": ""
+    },
+    {
+      "id": "Q31",
+      "category": "compare",
+      "question": "How does passive reconnaissance differ from active reconnaissance?",
+      "answerable": true,
+      "gold_answer": "Passive reconnaissance monitors network data for patterns and clues (for example, sniffing and information gathering). Active reconnaissance probes the network to identify accessible hosts, open ports, routers, operating systems, and services.",
+      "gold_pages": [
+        20
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval,multi-page",
+      "evidence": "EC-Council Phase 1 - Reconnaissance (contd.) ~ Passive reconnaissance involves monitoring network data for patterns and clues. • Examples include sniffing, information gathering etc. ~ Active reconnaissance involves probing the network to detect • accessible hosts • open ports • location of routers • details of operating systems and services"
+    },
+    {
+      "id": "Q32",
+      "category": "definition",
+      "question": "According to the handbook, what is a vulnerability?",
+      "answerable": true,
+      "gold_answer": "A weakness, design flaw, or implementation error that can lead to an unexpected, undesirable event compromising system security.",
+      "gold_pages": [
+        16
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Essential Terminology ~ Threat – An action or event that might prejudice security. A threat is a potential violation of security. ~ Vulnerability – Existence of a weakness, design, or implementation error that can lead to an unexpected, undesirable event compromising the security of the system. ~ Target of Evaluation – An IT system, product, or component that is identified/subjected as requiring security evaluation. ~ Attack – An assault on system security that derives from an intelligent threat. An attack is any action that violates security. ~ Exploit – A defined way to breach the security of an IT system through vulnerability."
+    },
+    {
+      "id": "Q33",
+      "category": "definition",
+      "question": "How does the handbook define an exploit?",
+      "answerable": true,
+      "gold_answer": "A defined way to breach the security of an IT system through a vulnerability.",
+      "gold_pages": [
+        16
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Essential Terminology ~ Threat – An action or event that might prejudice security. A threat is a potential violation of security. ~ Vulnerability – Existence of a weakness, design, or implementation error that can lead to an unexpected, undesirable event compromising the security of the system. ~ Target of Evaluation – An IT system, product, or component that is identified/subjected as requiring security evaluation. ~ Attack – An assault on system security that derives from an intelligent threat. An attack is any action that violates security. ~ Exploit – A defined way to breach the security of an IT system through vulnerability."
+    },
+    {
+      "id": "Q34",
+      "category": "explain",
+      "question": "What does the gaining-access phase mean, and what factors influence it?",
+      "answerable": true,
+      "gold_answer": "It is the phase in which the hacker exploits the system. Influencing factors include the target system’s architecture and configuration, the perpetrator’s skill level, and the initial level of access obtained.",
+      "gold_pages": [
+        22
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval,multi-page",
+      "evidence": "EC-Council Phase 3 - Gaining Access ~ Gaining Access refers to the true attack phase. The hacker exploits the system. ~ The exploit can occur over a LAN, locally, Internet, offline, as a deception or theft. Examples include stack- based buffer overflows, denial of service, session hijacking, password filtering etc. ~ Influencing factors include architecture and configuration of target system, skill level of the perpetrator and initial level of access obtained. ~ Business Risk – ‘Highest’ - The hacker can gain access at operating system level, application level or network level."
+    },
+    {
+      "id": "Q35",
+      "category": "explain",
+      "question": "What is the maintaining-access phase, and what mechanisms does the material list as examples?",
+      "answerable": true,
+      "gold_answer": "It is the phase in which a hacker tries to retain control of a compromised system. Examples listed include backdoors, rootkits, Trojans, and Trojan-horse backdoors.",
+      "gold_pages": [
+        23
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval,multi-page",
+      "evidence": "EC-Council Phase 4 - Maintaining Access ~ Maintaining Access refers to the phase when the hacker tries to retain his ‘ownership’ of the system. ~ The hacker has exploited a vulnerability and can tamper and compromise the system. ~ Sometimes, hackers harden the system from other hackers as well (to own the system) by securing their exclusive access with Backdoors, RootKits, Trojans and Trojan horse Backdoors. ~ Hackers can upload, download or manipulate data / applications / configurations on the ‘owned’ system."
+    },
+    {
+      "id": "Q36",
+      "category": "list",
+      "question": "Which six modes of ethical hacking are listed in the material?",
+      "answerable": true,
+      "gold_answer": "Remote network, remote dial-up network, local network, stolen equipment, social engineering, and physical entry.",
+      "gold_pages": [
+        30
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Modes of Ethical Hacking ~ Remote network – This mode attempts to simulate an intruder launch an attack over the Internet. ~ Remote dial-up network - This mode attempts to simulate an intruder launching an attack against the client’s modem pools. ~ Local network – This mode simulates an employee with legal access gaining unauthorized access over the local network. ~ Stolen equipment – This mode simulates theft of a critical information resource such as a laptop owned by a strategist, (taken by the client unaware of its owner and given to the ethical hacker). ~ Social engineering – This aspect attempts to check the integrity of the organization’s employees. ~ Physical entry – This mode attempts to physically compromise the organization’s ICT infrastructure."
+    },
+    {
+      "id": "Q37",
+      "category": "fact",
+      "question": "Which ethical-hacking mode simulates an intruder attacking a client’s modem pools?",
+      "answerable": true,
+      "gold_answer": "Remote dial-up network testing.",
+      "gold_pages": [
+        30
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Modes of Ethical Hacking ~ Remote network – This mode attempts to simulate an intruder launch an attack over the Internet. ~ Remote dial-up network - This mode attempts to simulate an intruder launching an attack against the client’s modem pools. ~ Local network – This mode simulates an employee with legal access gaining unauthorized access over the local network. ~ Stolen equipment – This mode simulates theft of a critical information resource such as a laptop owned by a strategist, (taken by the client unaware of its owner and given to the ethical hacker). ~ Social engineering – This aspect attempts to check the integrity of the organization’s employees. ~ Physical entry – This mode attempts to physically compromise the organization’s ICT infrastructure."
+    },
+    {
+      "id": "Q38",
+      "category": "list",
+      "question": "What is a ping sweep used for, according to the handbook?",
+      "answerable": true,
+      "gold_answer": "A ping sweep is a basic step in network mapping that polls network blocks and/or IP address ranges.",
+      "gold_pages": [
+        83
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "[PDF page 83] EC-Council Detecting Ping Sweeps Ping sweeps form a basic step in network mapping by polling network blocks and/or IP address ranges. Ping Utilities include: • WS_PingProPack (www.ipswitch.com) • NetScan Tools (www.nwpsw.com) • Hping (http://www.hping.org/download.html) • icmpenum (www.nmrc.org/files/sunix/icmpenum-1.1.1.tgz) Ping Sweep Detection Utilities include: • Network based IDS (www.snort.org) • Genius (www.indiesoft.com) • BlackICE (www.networkice.com) • Scanlogd (www.openwall.com/scanlogd)"
+    },
+    {
+      "id": "Q39",
+      "category": "list",
+      "question": "What broad categories of port-scanning techniques does the handbook identify?",
+      "answerable": true,
+      "gold_answer": "Open scan, half-open scan, stealth scan, sweeps, and miscellaneous techniques.",
+      "gold_pages": [
+        87
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Port Scanning Techniques Port Scanning Techniques can be broadly classified into: ~ Open scan ~ Half- open scan ~ Stealth scan ~ Sweeps ~ Misc"
+    },
+    {
+      "id": "Q40",
+      "category": "explain",
+      "question": "What is a proxy server, and what purposes does the handbook list for it?",
+      "answerable": true,
+      "gold_answer": "A proxy is an intermediate network computer for connections to other computers. Listed purposes include protecting a local network as a firewall, sharing one IP address among multiple computers, partially anonymizing web surfing, filtering unwanted content, and providing some protection against hacking attacks.",
+      "gold_pages": [
+        96
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval,multi-page",
+      "evidence": "EC-Council Proxy Servers ~ Proxy is a network computer that can serve as an intermediate for connection with other computers. They are usually used for the following purposes: • As firewall, a proxy protects the local network from outside access. • As IP-addresses multiplexer, a proxy allows to connect a number of computers to Internet when having only one IP-address • Proxy servers can be used (to some extent) to anonymize web surfing. • Specialized proxy servers can filter out unwanted content, such as ads or 'unsuitable' material. • Proxy servers can afford some protection against hacking attacks."
+    },
+    {
+      "id": "Q41",
+      "category": "list",
+      "question": "What countermeasures against null sessions are described on the relevant slide?",
+      "answerable": true,
+      "gold_answer": "Disable SMB services by unbinding WINS Client TCP/IP from the interface, or edit the registry to restrict anonymous users. The slide gives the path HKLM\\SYSTEM\\CurrentControlSet\\LSA and a ResticAnonymous REG_WORD value of 2.",
+      "gold_pages": [
+        106
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Null Session Countermeasure ~ Null sessions require access to TCP 139 and/ or TCP 445 ports. ~ You could also disable SMB services entirely on individual hosts by unbinding WINS Client TCP/IP from the interface. ~ Edit the registry to restrict the anonymous user. • 1. Open regedt32, navigate to HKLM\\SYSTEM\\CurrentControlSet\\LSA • 2. Choose edit | add value • value name: ResticAnonymous • Data Type: REG_WORD • Value: 2"
+    },
+    {
+      "id": "Q42",
+      "category": "procedure",
+      "question": "What sequence does the handbook give for manual password cracking?",
+      "answerable": true,
+      "gold_answer": "Find a valid user; create a list of possible passwords; rank them from highest to lowest probability; try each password; if access fails, continue until successful.",
+      "gold_pages": [
+        137
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval,ordered-steps",
+      "evidence": "EC-Council Manual Password Cracking Algorithm ~Find a valid user ~Create a list of possible passwords ~Rank the passwords from high probability to low ~Key in each password ~If the system allows you in - Success ~Else try till success"
+    },
+    {
+      "id": "Q43",
+      "category": "list",
+      "question": "Which six types of password attacks are listed in the handbook?",
+      "answerable": true,
+      "gold_answer": "Dictionary attack, brute-force attack, hybrid attack, social engineering, shoulder surfing, and dumpster diving.",
+      "gold_pages": [
+        140
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Types of Password Attacks ~ Dictionary attack ~ Brute force attack ~ Hybrid attack ~ Social engineering ~ Shoulder surfing ~ Dumpster diving"
+    },
+    {
+      "id": "Q44",
+      "category": "definition",
+      "question": "What is a buffer overrun as defined in the handbook?",
+      "answerable": true,
+      "gold_answer": "It occurs when a program allocates a buffer of a certain length and too much data is written into it, overflowing the buffer and potentially overwriting information important to normal execution.",
+      "gold_pages": [
+        181
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Buffer overflows ~A buffer overrun is when a program allocates a block of memory of a certain length and then tries to stuff too much data into the buffer, with extra overflowing and overwriting possibly critical information crucial to the normal execution of the program. Consider the following source code: ~When the source is compiled and turned into a program and the program is run, it will assign a block of memory 32 bytes long to hold the name string. Buffer overflow will occur if you enter: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA AAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "id": "Q45",
+      "category": "compare",
+      "question": "What are the three Snort operating modes, and what does each do?",
+      "answerable": true,
+      "gold_answer": "Sniffer mode displays packets continuously on the console; packet-logger mode writes packets to disk; network intrusion-detection mode analyzes traffic for matches against a user-defined rule set.",
+      "gold_pages": [
+        232
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval,multi-page",
+      "evidence": "EC-Council Tool: Snort ~There are three main modes in which Snort can be configured: sniffer, packet logger, and network intrusion detection system. ~Sniffer mode simply reads the packets off of the network and displays them for you in a continuous stream on the console. ~Packet logger mode logs the packets to the disk. ~Network intrusion detection mode is the most complex and configurable configuration, allowing Snort to analyze network traffic for matches against a user defined rule set"
+    },
+    {
+      "id": "Q46",
+      "category": "explain",
+      "question": "According to the handbook, how does IDS pattern matching alert on suspicious traffic?",
+      "answerable": true,
+      "gold_answer": "The IDS compares packets against a database of signatures; when it finds a packet with a matching pattern, it sets off an alarm.",
+      "gold_pages": [
+        274
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "[PDF page 274] EC-Council Preventing the DDoS 1. Keep the network secure 2. Install IDS (Intrusion Detection System) 3. Use scanning tools 4. Run zombie tools IDS pattern matching technologies have a database of signatures. When it finds packets that have a given pattern, it sets off an alarm."
+    },
+    {
+      "id": "Q47",
+      "category": "procedure",
+      "question": "Which four measures does the handbook list for preventing DDoS attacks?",
+      "answerable": true,
+      "gold_answer": "Keep the network secure, install an intrusion detection system (IDS), use scanning tools, and run zombie tools.",
+      "gold_pages": [
+        274
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval,ordered-steps",
+      "evidence": "EC-Council Preventing the DDoS 1. Keep the network secure 2. Install IDS (Intrusion Detection System) 3. Use scanning tools 4. Run zombie tools IDS pattern matching technologies have a database of signatures. When it finds packets that have a given pattern, it sets off an alarm."
+    },
+    {
+      "id": "Q48",
+      "category": "list",
+      "question": "What are the three parts of a reverse social-engineering attack listed in the handbook?",
+      "answerable": true,
+      "gold_answer": "Sabotage, advertising, and assisting.",
+      "gold_pages": [
+        288
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Reverse Social Engineering ~ More advanced method of gaining illicit information is known as \"reverse social engineering\" ~ This is when the hacker creates a persona that appears to be in a position of authority so that employees will ask him for information, rather than the other way around. ~ The three parts of reverse social engineering attacks are sabotage, advertising and assisting."
+    },
+    {
+      "id": "Q49",
+      "category": "list",
+      "question": "Which input-manipulation techniques are listed in the web-application section?",
+      "answerable": true,
+      "gold_answer": "URL manipulation/CGI parameter tampering, HTTP client-header injection, filter or intrusion-detection evasion, protocol/method manipulation, and overflows.",
+      "gold_pages": [
+        356
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Input Manipulation ~URL Manipulation -CGI Parameter Tampering ~HTTP Client-Header Injection ~Filter/Intrusion Detection Evasion ~Protocol/Method Manipulation ~Overflows"
+    },
+    {
+      "id": "Q50",
+      "category": "explain",
+      "question": "How does certificate-based authentication work according to the handbook, and where may certificates be stored?",
+      "answerable": true,
+      "gold_answer": "It uses public-key cryptography and a digital certificate to authenticate a user. Certificates may be stored on smart cards for greater security.",
+      "gold_pages": [
+        371
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval,multi-page",
+      "evidence": "EC-Council Certificate Based Authentication ~ Certificate authentication is stronger than other authentication mechanisms ~ Certificated authentication uses public0key cryptography and digital certificate to authenticate a user. Certificates can be stored in smart cards for even greater security. ~ There is no current known attacks against PKI security so far."
+    },
+    {
+      "id": "Q51",
+      "category": "procedure",
+      "question": "What simple form input does the handbook suggest trying as an initial check for a possible SQL-injection vulnerability?",
+      "answerable": true,
+      "gold_answer": "Enter a single quote (') as the username and observe whether the vulnerable form produces an error.",
+      "gold_pages": [
+        391
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council OLE DB Errors The user filled fields are enclosed by single quotation marks ('). So a simple test of the form would be to try using (') as the username. Lets us see what happens if we just enter ' in a form that is vulnerable to SQL insertion. If you get this error, then we can try SQL injection techniques."
+    },
+    {
+      "id": "Q52",
+      "category": "explain",
+      "question": "In public-key cryptography, which key is published and which key is kept secret?",
+      "answerable": true,
+      "gold_answer": "The public key is published; the private key is kept secret by its owner.",
+      "gold_pages": [
+        545
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Public-key Cryptography ~ Public-key cryptography was invented in 1976 by Whitfield Diffie and Martin Hellman. ~ In this system, each person gets a pair of keys, called the public key and the private key. ~ Each person's public key is published while the private key is kept secret. ~ Anyone can send a confidential message just using public information, but it can only be decrypted with a private key that is in the sole possession of the intended recipient."
+    },
+    {
+      "id": "Q53",
+      "category": "fact",
+      "question": "What capabilities does the handbook say Pretty Good Privacy (PGP) provides?",
+      "answerable": true,
+      "gold_answer": "PGP provides message encryption, digital signatures, data compression, and email compatibility; it is used for email and file-storage applications.",
+      "gold_pages": [
+        559
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council PGP Pretty Good Privacy ~ Pretty Good Privacy (PGP) is a software package originally developed by Philip R Zimmermann that provides cryptographic routines for emails and file storage applications. ~ Zimmermann took existing cryptosystems and cryptographic protocols and developed a program that can run on multiple platforms. It provides message encryption, digital signatures, data compression and e- mail compatibility."
+    },
+    {
+      "id": "Q54",
+      "category": "definition",
+      "question": "What does the handbook say Secure Sockets Layer (SSL) is used for?",
+      "answerable": true,
+      "gold_answer": "SSL is a protocol for transmitting private documents over the Internet.",
+      "gold_pages": [
+        561
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Summary ~ Using Public Key Infrastructure (PKI), anyone can send a confidential message using public information, which can only be decrypted with a private key in the sole possession of the intended recipient. ~ RSA encryption is widely used and is a 'de-facto' encryption standard. ~ The MD5 algorithm is intended for digital signature applications, where a large file must be compressed securely before being encrypted ~ SHA algorithm takes as input a message of arbitrary length and produces as output a 160-bit message digest of the input. ~ Secure Sockets Layer, SSL is a protocol for transmitting private documents via the Internet. ~ RC5 is a fast block cipher designed by RSA Security. ~ SSH (Secure Shell) is a secure replacement for telnet and the Berkeley r-utilities and this provides an encrypted channel for logging into another computer over a network, executing commands on a remote computer, and moving files from one computer to another."
+    },
+    {
+      "id": "Q55",
+      "category": "fact",
+      "question": "What does the handbook identify SSH as a secure replacement for, and what can it provide?",
+      "answerable": true,
+      "gold_answer": "SSH is described as a secure replacement for Telnet and the Berkeley r-utilities. It provides an encrypted channel for remote login, executing commands on another computer, and transferring files between computers.",
+      "gold_pages": [
+        561
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval,multi-page",
+      "evidence": "EC-Council Summary ~ Using Public Key Infrastructure (PKI), anyone can send a confidential message using public information, which can only be decrypted with a private key in the sole possession of the intended recipient. ~ RSA encryption is widely used and is a 'de-facto' encryption standard. ~ The MD5 algorithm is intended for digital signature applications, where a large file must be compressed securely before being encrypted ~ SHA algorithm takes as input a message of arbitrary length and produces as output a 160-bit message digest of the input. ~ Secure Sockets Layer, SSL is a protocol for transmitting private documents via the Internet. ~ RC5 is a fast block cipher designed by RSA Security. ~ SSH (Secure Shell) is a secure replacement for telnet and the Berkeley r-utilities and this provides an encrypted channel for logging into another computer over a network, executing commands on a remote computer, and moving files from one computer to another."
+    },
+    {
+      "id": "Q56",
+      "category": "fact",
+      "question": "How does the handbook characterize the RC5 algorithm?",
+      "answerable": true,
+      "gold_answer": "RC5 is described as a fast block cipher designed by RSA Security.",
+      "gold_pages": [
+        561
+      ],
+      "hard_negative_pages": [],
+      "tests": "retrieval",
+      "evidence": "EC-Council Summary ~ Using Public Key Infrastructure (PKI), anyone can send a confidential message using public information, which can only be decrypted with a private key in the sole possession of the intended recipient. ~ RSA encryption is widely used and is a 'de-facto' encryption standard. ~ The MD5 algorithm is intended for digital signature applications, where a large file must be compressed securely before being encrypted ~ SHA algorithm takes as input a message of arbitrary length and produces as output a 160-bit message digest of the input. ~ Secure Sockets Layer, SSL is a protocol for transmitting private documents via the Internet. ~ RC5 is a fast block cipher designed by RSA Security. ~ SSH (Secure Shell) is a secure replacement for telnet and the Berkeley r-utilities and this provides an encrypted channel for logging into another computer over a network, executing commands on a remote computer, and moving files from one computer to another."
     }
   ],
   "cache_tests": [
@@ -533,5 +901,12 @@
       "bad_answer": "Confidentiality, integrity, availability and non-repudiation.",
       "bad_type": "swapped item"
     }
-  ]
+  ],
+  "dataset_version": "2.0",
+  "source_pdf_sha256": "5468ba4dcb6f047dd8f1800044e1cff279ec453b4ddba0cdabacf1f94b648903",
+  "qa_counts": {
+    "answerable": 50,
+    "unanswerable": 6,
+    "total": 56
+  }
 }

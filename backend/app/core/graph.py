@@ -50,6 +50,9 @@ from app.guardrails.security import HIGH, POLICY_BLOCK_MESSAGE, SYSTEM_CANARY, s
 from app.guardrails.pii import apply_policy as apply_pii_policy
 from app.rag.quotes import best_quote
 
+from psycopg_pool import ConnectionPool
+from app.config import DATABASE_URL, logger
+from langgraph.checkpoint.postgres import PostgresSaver
 
 from app.core.llm import get_llm
 from app.core.reranker import rerank_documents
@@ -609,8 +612,12 @@ def route_after_memory(state: AgentState) -> str:
     return "generate" if state.get("relevant_docs") else "no_memory_found"
 
 
+
 def route_after_cache(state: AgentState) -> str:
-    return "update_memory" if state.get("tool_used") == CACHE_TOOL else "retrieve"
+    """Send cached answers through output guardrails before returning them."""
+    if state.get("tool_used") == CACHE_TOOL:
+        return "guard_output"
+    return "retrieve"
 
 
 def route_after_grading(state: AgentState) -> str:
@@ -624,16 +631,19 @@ def route_after_grading(state: AgentState) -> str:
 # --------------------------------------------------------------------------
 # Graph assembly -- compiled ONCE at import time.
 # --------------------------------------------------------------------------
+
 def _build_graph() -> StateGraph:
     g = StateGraph(AgentState)
 
+    # Register every node exactly once.
     g.add_node("classify_intent", classify_intent_node)
     g.add_node("retrieve_memory", retrieve_from_memory_node)
     g.add_node("no_memory_found", no_memory_found_node)
-    g.add_node("check_cache", check_cache_node)
+    g.add_node("check_cache", check_cache_node)  # Important: was missing
     g.add_node("no_retriever", no_retriever_node)
     g.add_node("retrieve", retrieve_node)
-    g.add_node("rerank", rerank_node)  
+    g.add_node("rerank", rerank_node)
+    g.add_node("sanitize", sanitize_node)
     g.add_node("grade", grade_chunks_node)
     g.add_node("rewrite", rewrite_query_node)
     g.add_node("no_docs_found", no_docs_found_node)
@@ -641,48 +651,92 @@ def _build_graph() -> StateGraph:
     g.add_node("check_faithfulness", check_faithfulness_node)
     g.add_node("regenerate", regenerate_node)
     g.add_node("abstain", abstain_node)
-    g.add_node("sanitize", sanitize_node)
     g.add_node("guard_output", guard_output_node)
     g.add_node("build_sources", build_sources_node)
     g.add_node("update_memory", update_memory_node)
 
+    # Entry point and intent routing.
     g.set_entry_point("classify_intent")
-    g.add_conditional_edges("classify_intent", route_after_intent,
-                             {"retrieve_memory": "retrieve_memory", "no_retriever": "no_retriever", "check_cache": "check_cache"})
 
-    g.add_conditional_edges("retrieve_memory", route_after_memory,
-                             {"generate": "generate", "no_memory_found": "no_memory_found"})
+    g.add_conditional_edges(
+        "classify_intent",
+        route_after_intent,
+        {
+            "retrieve_memory": "retrieve_memory",
+            "no_retriever": "no_retriever",
+            "check_cache": "check_cache",
+        },
+    )
+
+    # Recall path.
+    g.add_conditional_edges(
+        "retrieve_memory",
+        route_after_memory,
+        {
+            "generate": "generate",
+            "no_memory_found": "no_memory_found",
+        },
+    )
     g.add_edge("no_memory_found", "build_sources")
 
-    g.add_conditional_edges("check_cache", route_after_cache,
-                             {"update_memory": "update_memory", "retrieve": "retrieve"})
+    # Cache path.
+    # Cache hits MUST pass through guard_output before sources/memory updates.
+    # Cache misses continue to document retrieval.
+    g.add_conditional_edges(
+        "check_cache",
+        route_after_cache,
+        {
+            "guard_output": "guard_output",
+            "retrieve": "retrieve",
+        },
+    )
+
+    # No-retriever fallback.
     g.add_edge("no_retriever", "update_memory")
 
-
-    g.add_edge("retrieve", "rerank")      # replaces: g.add_edge("retrieve", "grade")
+    # Document retrieval and relevance grading.
+    g.add_edge("retrieve", "rerank")
     g.add_edge("rerank", "sanitize")
     g.add_edge("sanitize", "grade")
-    g.add_conditional_edges("grade", route_after_grading,
-                             {"generate": "generate", "rewrite": "rewrite", "no_docs_found": "no_docs_found"})
+
+    g.add_conditional_edges(
+        "grade",
+        route_after_grading,
+        {
+            "generate": "generate",
+            "rewrite": "rewrite",
+            "no_docs_found": "no_docs_found",
+        },
+    )
+
     g.add_edge("rewrite", "retrieve")
     g.add_edge("no_docs_found", "build_sources")
 
+    # Answer generation and faithfulness checking.
     g.add_edge("generate", "check_faithfulness")
-    g.add_conditional_edges("check_faithfulness", route_after_faithfulness,
-                             {"regenerate": "regenerate", "abstain": "abstain", "guard_output": "guard_output"})
-    g.add_edge("guard_output", "build_sources")
+
+    g.add_conditional_edges(
+        "check_faithfulness",
+        route_after_faithfulness,
+        {
+            "regenerate": "regenerate",
+            "abstain": "abstain",
+            "guard_output": "guard_output",
+        },
+    )
+
     g.add_edge("regenerate", "check_faithfulness")
     g.add_edge("abstain", "build_sources")
 
+    # Shared output finalization.
+    # Both generated and cached answers pass through guard_output.
+    g.add_edge("guard_output", "build_sources")
     g.add_edge("build_sources", "update_memory")
     g.add_edge("update_memory", END)
 
     return g
 
 
-from app.config import DATABASE_URL, logger
-from psycopg_pool import ConnectionPool
-from langgraph.checkpoint.postgres import PostgresSaver
 
 # --------------------------------------------------------------------------
 # Supabase Postgres Checkpointer Setup
@@ -696,6 +750,9 @@ _pool = ConnectionPool(
     max_size=10,
     open=True,
     kwargs={"autocommit": True, "prepare_threshold": 0},
+    # --- add these two lines ---
+    check=ConnectionPool.check_connection,      # validate every conn before handing it out
+    max_idle=120,                                # retire idle conns before the pooler kills them
 )
 
 # Initialize checkpointer
