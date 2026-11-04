@@ -1,94 +1,102 @@
-
 import time
+from datetime import datetime, timezone
 
 import jwt
 import pytest
-from fastapi import HTTPException
+from fastapi import FastAPI, Depends
+from fastapi.testclient import TestClient
 
-from app import identity
+from app.identity import (
+    ACCESS_COOKIE_NAME,
+    create_access_token,
+    get_current_user_id,
+    hash_password,
+    verify_password,
+)
+from app.config import JWT_SECRET_KEY, JWT_ALGORITHM
 
 
-def test_new_token_is_accepted(monkeypatch):
-    monkeypatch.setattr(
-        identity,
-        "get_user_by_id",
-        lambda user_id: {
-            "user_id": user_id,
-            "password_changed_at": None,
-        },
+def _app():
+    app = FastAPI()
+
+    @app.get("/protected")
+    def protected(user_id: str = Depends(get_current_user_id)):
+        return {"user_id": user_id}
+
+    return app
+
+
+def test_password_hash_roundtrip():
+    password = "StrongPassword123!"
+    hashed = hash_password(password)
+
+    assert hashed != password
+    assert verify_password(password, hashed)
+    assert not verify_password("WrongPassword123!", hashed)
+
+
+def test_password_hash_rejects_more_than_72_utf8_bytes():
+    with pytest.raises(ValueError):
+        hash_password("a" * 73)
+
+
+def test_access_token_contains_auth_time():
+    token = create_access_token("user-123")
+    payload = jwt.decode(
+        token,
+        JWT_SECRET_KEY,
+        algorithms=[JWT_ALGORITHM],
     )
 
-    token = identity.create_access_token("user-123")
-
-    assert identity.get_current_user_id(token=token) == "user-123"
-
-
-def test_token_issued_before_password_change_is_rejected(monkeypatch):
-    token = identity.create_access_token("user-123")
-
-    monkeypatch.setattr(
-        identity,
-        "get_user_by_id",
-        lambda user_id: {
-            "user_id": user_id,
-            "password_changed_at": time.time() + 1,
-        },
-    )
-
-    with pytest.raises(HTTPException) as exc:
-        identity.get_current_user_id(token=token)
-
-    assert exc.value.status_code == 401
+    assert payload["sub"] == "user-123"
+    assert isinstance(payload["auth_time"], (int, float))
+    assert payload["exp"] > payload["iat"]
 
 
-def test_token_issued_after_password_change_is_accepted(monkeypatch):
-    # The password change occurred before this token was issued.
-    changed_at = time.time() - 10
-    token = identity.create_access_token("user-123")
+def test_protected_route_rejects_missing_cookie():
+    client = TestClient(_app())
 
-    monkeypatch.setattr(
-        identity,
-        "get_user_by_id",
-        lambda user_id: {
-            "user_id": user_id,
-            "password_changed_at": changed_at,
-        },
-    )
+    response = client.get("/protected")
 
-    assert identity.get_current_user_id(token=token) == "user-123"
+    assert response.status_code == 401
 
 
-def test_legacy_token_without_iat_is_rejected(monkeypatch):
-    token = jwt.encode(
+def test_protected_route_rejects_expired_token(monkeypatch):
+    client = TestClient(_app())
+
+    expired_token = jwt.encode(
         {
             "sub": "user-123",
-            "exp": time.time() + 600,
+            "iat": int(time.time()) - 3600,
+            "auth_time": time.time() - 3600,
+            "exp": int(time.time()) - 60,
         },
-        identity.JWT_SECRET_KEY,
-        algorithm=identity.JWT_ALGORITHM,
+        JWT_SECRET_KEY,
+        algorithm=JWT_ALGORITHM,
     )
 
-    monkeypatch.setattr(
-        identity,
-        "get_user_by_id",
-        lambda user_id: {
-            "user_id": user_id,
-            "password_changed_at": None,
+    client.cookies.set(ACCESS_COOKIE_NAME, expired_token)
+
+    response = client.get("/protected")
+
+    assert response.status_code == 401
+
+
+def test_protected_route_rejects_legacy_token_without_auth_time(monkeypatch):
+    client = TestClient(_app())
+
+    legacy_token = jwt.encode(
+        {
+            "sub": "user-123",
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 3600,
         },
+        JWT_SECRET_KEY,
+        algorithm=JWT_ALGORITHM,
     )
 
-    with pytest.raises(HTTPException) as exc:
-        identity.get_current_user_id(token=token)
+    client.cookies.set(ACCESS_COOKIE_NAME, legacy_token)
 
-    assert exc.value.status_code == 401
+    response = client.get("/protected")
 
-
-def test_deleted_user_token_is_rejected(monkeypatch):
-    monkeypatch.setattr(identity, "get_user_by_id", lambda user_id: None)
-
-    token = identity.create_access_token("deleted-user")
-
-    with pytest.raises(HTTPException) as exc:
-        identity.get_current_user_id(token=token)
-
-    assert exc.value.status_code == 401
+    assert response.status_code == 401

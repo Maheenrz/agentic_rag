@@ -8,7 +8,7 @@ const MAX_PASSWORD_BYTES = 72;
 
 export default function AcceptInvitePage() {
   const [params] = useSearchParams();
-  const token = params.get('token') || '';
+  const token = params.get('token') || new URLSearchParams(window.location.hash.slice(1)).get('token') || '';
   const navigate = useNavigate();
 
   const [meta, setMeta] = useState(null);   // { username, email, org }
@@ -19,7 +19,7 @@ export default function AcceptInvitePage() {
 
   useEffect(() => {
     if (!token) return setError('This invite link is missing its token.');
-    api(`/auth/invite/${encodeURIComponent(token)}`)
+    api('/auth/invite/lookup', { method: 'POST', body: { token } })
       .then(setMeta)
       .catch((e) => setError(e.message));
   }, [token]);

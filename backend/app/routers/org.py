@@ -76,9 +76,13 @@ def org_create_user(body: CreateUserRequest, request: Request, admin: dict = Dep
     audit_store.log("user_invited", admin, target=user_id, ip=_ip(request),
                     detail={"username": body.username, "email": email, "role": body.role})
 
-    # Return the token so the admin console can display the invite link even in dev
-    # (no email service configured). In prod you may want to omit this.
-    return {"user_id": user_id, "invite_token": plaintext}
+
+    # Never return the plaintext invitation token to the admin frontend.
+    # The invitation link is delivered through the email service.
+    return {
+        "user_id": user_id,
+        "message": "Invitation created. An invitation email has been sent.",
+    }
 
 
 @router.post("/users/{user_id}/invite", status_code=status.HTTP_200_OK)
@@ -90,18 +94,30 @@ def org_resend_invite(user_id: str, request: Request, admin: dict = Depends(requ
     if target.get("password_hash"):
         raise HTTPException(status_code=400, detail="This user has already set a password")
 
+    # Check before rotating the stored token; a failed resend must not
+    # invalidate an existing invitation when no delivery address exists.
+    if not target.get("email"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This user does not have an email address.",
+        )
+
     plaintext, digest, expires_at = new_token(INVITE_TTL_SECONDS)
     set_invite_token(user_id, digest, expires_at)
 
     org = org_store.get_org(admin["org_id"])
-    if target.get("email"):
-        send_invite_email(
-            to=target["email"], username=target["username"],
-            org_name=org["name"] if org else "your organisation",
-            token=plaintext,
-        )
+
+    send_invite_email(
+        to=target["email"],
+        username=target["username"],
+        org_name=org["name"] if org else "your organisation",
+        token=plaintext,
+    )
     audit_store.log("user_invite_resent", admin, target=user_id, ip=_ip(request))
-    return {"user_id": user_id, "invite_token": plaintext}
+    return {
+        "user_id": user_id,
+        "message": "A new invitation email has been sent.",
+    }
 
 
 @router.delete("/users/{user_id}")

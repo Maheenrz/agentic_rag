@@ -1,3 +1,4 @@
+
 <div align="center">
 
 # Private Docs Assistant
@@ -9,10 +10,10 @@ Ask questions across private documents. Get grounded answers with source referen
 <br />
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/Frontend-React-61DAFB?logo=react&logoColor=222)
-![Vite](https://img.shields.io/badge/Build-Vite-646CFF?logo=vite&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20%2B%20pgvector-4169E1?logo=postgresql&logoColor=white)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi)
+![React](https://img.shields.io/badge/Frontend-React-61DAFB?logo=react)
+![Vite](https://img.shields.io/badge/Build-Vite-646CFF?logo=vite)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20%2B%20pgvector-4169E1?logo=postgresql)
 ![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-1C3C3C)
 
 </div>
@@ -27,7 +28,7 @@ Organisations can upload policies, handbooks, reports, and spreadsheets into acc
 
 The project combines hybrid retrieval, reranking, a graph-based answer workflow, document-level access control, and layered input/output guardrails. It also includes a guest experience for asking a small number of questions about a visitor's own uploaded document.
 
-> **Project status:** The backend test suite and frontend production build have been verified locally. Cloud deployment is not represented as live in this README.
+> **Project status:** The project has Vercel and Azure deployment configuration. This source audit does not verify the currently deployed revision or live cloud health. Historical local evaluation results are reported below with their original scope.
 
 ## Highlights
 
@@ -48,7 +49,7 @@ The project combines hybrid retrieval, reranking, a graph-based answer workflow,
 | Documents | PDF, DOCX, TXT, Markdown, HTML, and XLSX ingestion |
 | Retrieval | MiniLM embeddings, BM25, RRF fusion, and FlashRank reranking |
 | Answers | Context-grounded generation, faithfulness checking, source references, and quoted passages |
-| Identity | Password hashing, JWT-based authentication, organisation membership, and role-aware routes |
+| Identity | Password hashing, HttpOnly-cookie JWT authentication, organisation membership, and role-aware routes |
 | Administration | User and group management, collection controls, audit log, feedback review, and guardrail settings |
 | Guest mode | Temporary personal document collection, streamed answers, question limits, and expiry cleanup |
 | Persistence | PostgreSQL, pgvector, SQLAlchemy, and LangGraph PostgreSQL checkpoints |
@@ -137,7 +138,7 @@ Security is implemented in several stages rather than relying on the prompt alon
 - Output checks for remote images, unsupported links, secret-like values, canary leakage, and configured PII rules.
 - Collection access failures use a not-found response to avoid exposing inaccessible collection identifiers.
 - Document deletion and access revocation trigger related chunk, cache, and conversation-summary cleanup paths.
-- Audit events cover important authentication, upload, access, policy, and security actions.
+- Audit events cover important authentication, upload, access, policy, and security actions. Flagged-question entries store rule/reason metadata rather than raw question text.
 
 **Security note:** These are application-level safeguards, not a claim of formal security certification. Pattern-based detection has limits; see [Known limitations](#known-limitations).
 
@@ -171,16 +172,16 @@ Evaluation was run locally against a dedicated evaluation database using a 578-p
 
 The red-team cases are hand-authored, and the injection comparison was run once. These results are useful engineering signals, not independent certification or a statistically broad security benchmark.
 
-### Current test and build status
+### Test and build status
 
-Verified locally on **November 3, 2026**:
+**Previously recorded local verification (November 3, 2026; not reproduced in the November 4 source audit):**
 
 | Check | Result |
 |---|---:|
 | Full backend pytest suite | **98 passed, 4 xfailed** |
 | Frontend production build | **Passed** — 1,943 modules transformed |
 
-The four `xfail` tests are marked as expected failures in the test suite. The run also emitted two deprecation warnings (Python's `crypt` module via Passlib and a deprecated Starlette status constant); neither caused a test failure.
+The four `xfail` tests are marked as expected failures in the test suite. The run also emitted two deprecation warnings (Python's `crypt` module via Passlib and a deprecated Starlette status constant); neither caused a test failure. A later audit environment could not reproduce the full run because the throwaway PostgreSQL test database and several Python/Node dependencies were unavailable. See the release checklist before treating these checks as current.
 
 ## Local development
 
@@ -245,11 +246,7 @@ npm install
 npm run dev
 ```
 
-The local Vite client uses `http://localhost:8000` for API requests by default. For a deployed frontend, set `VITE_API_URL` to the public backend URL **at build time**:
-
-```bash
-VITE_API_URL=https://your-api.example.com npm run build
-```
+The frontend calls the backend through `/api`. Vite proxies `/api` to `http://localhost:8000` during local development. `frontend/vercel.json` rewrites `/api/*` to the configured Azure Container App, keeping browser requests first-party so the HttpOnly cookie works with `SameSite=Lax`. If the backend URL changes, update the rewrite destination and redeploy the frontend.
 
 ### 4. Optional guest chat
 
@@ -333,12 +330,12 @@ Configure secrets and database connection settings through the hosting platform'
 - Rate limits are in-memory and therefore apply per application process; distributed deployments need a shared rate-limit store.
 - Guest-session registry state is in memory, so multi-instance deployments and process restarts need durable/shared lifecycle coordination.
 - BM25 indexing is in memory and is best suited to the current project scale, not an unbounded corpus.
-- Authentication tokens are stored in browser local storage; this has a larger impact if a client-side XSS vulnerability is introduced.
+- Authentication uses an HttpOnly cookie; browser JavaScript does not read or store the JWT. Theme preference is stored locally in the browser.
 - Load, concurrency, and large-corpus performance have not been comprehensively benchmarked.
 
 ## Roadmap
 
-- [ ] Deploy the API and frontend with production environment variables and restricted CORS origins.
+- [x] Configure the API and frontend deployment targets; verify the deployed revision and production smoke tests after each release.
 - [ ] Add shared rate limiting and durable guest-session lifecycle state for multi-instance hosting.
 - [ ] Expand evaluation coverage across DOCX, XLSX, multilingual documents, and larger corpora.
 - [ ] Add repeated and independently authored prompt-injection evaluations.

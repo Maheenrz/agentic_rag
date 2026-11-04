@@ -19,7 +19,7 @@ from app.config import JWT_EXPIRE_MINUTES
 from app.deps import _ip, login_fail_limiter, throttle
 from app.models import (
     AcceptInviteRequest, ForgotPasswordRequest, LoginRequest,
-    RegisterRequest, ResetPasswordRequest,
+    RegisterRequest, ResetPasswordRequest, TokenLookupRequest,
 )
 from app.services.email import (
     send_invite_email,
@@ -210,9 +210,11 @@ def forgot_password(body: ForgotPasswordRequest, request: Request):
     }
 
 
-@router.get("/reset/{token}")
-def lookup_reset(token: str):
-    user = get_user_by_reset_token_hash(hash_token(token))
+@router.post("/reset/lookup")
+def lookup_reset(body: TokenLookupRequest):
+    # Keep one-time tokens in the POST body rather than URL paths, which may
+    # be copied into proxy and access logs.
+    user = get_user_by_reset_token_hash(hash_token(body.token))
     if not user or (user.get("reset_expires_at") or 0) < time.time():
         raise HTTPException(
             status_code=404,
@@ -244,9 +246,10 @@ def reset_password(body: ResetPasswordRequest, request: Request):
 
 
 # --------------------------------------------------------------- invite accept
-@router.get("/invite/{token}")
-def lookup_invite(token: str):
-    user = get_user_by_invite_token_hash(hash_token(token))
+@router.post("/invite/lookup")
+def lookup_invite(body: TokenLookupRequest):
+    # Keep one-time tokens out of URL paths and routine access logs.
+    user = get_user_by_invite_token_hash(hash_token(body.token))
     if not user or (user.get("invite_expires_at") or 0) < time.time():
         raise HTTPException(
             status_code=404,
