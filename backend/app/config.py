@@ -1,4 +1,3 @@
-
 """
 config.py
 ---------
@@ -39,6 +38,15 @@ def configure_logging() -> logging.Logger:
 
 
 logger = configure_logging()
+
+# Deployment environment and canonical frontend origin. Keep these values in
+# one place so email links, CORS, and CSRF checks cannot silently diverge.
+APP_ENV = os.getenv("APP_ENV", "dev").strip().lower()
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+if APP_ENV == "production" and not FRONTEND_URL.startswith("https://"):
+    raise EnvironmentError(
+        "FRONTEND_URL must be an explicit HTTPS URL in production."
+    )
 
 
 # --------------------------------------------------------------------------
@@ -123,7 +131,6 @@ JWT_SECRET_KEY = os.environ.get(
 )
 
 _DEFAULT_JWT_SECRET = "change-me-in-production"
-APP_ENV = os.getenv("APP_ENV", "dev")
 
 if JWT_SECRET_KEY == _DEFAULT_JWT_SECRET:
     if APP_ENV == "production":
@@ -169,14 +176,26 @@ MAX_XLSX_ROWS_PER_SHEET = int(
 INJECTION_QUERY_ACTION = os.getenv("INJECTION_QUERY_ACTION", "drop")
 MAX_QUESTION_CHARS = int(os.getenv("MAX_QUESTION_CHARS", "2000"))
 
-CORS_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv(
-        "CORS_ORIGINS",
+_configured_cors = os.getenv("CORS_ORIGINS")
+if _configured_cors:
+    CORS_ORIGINS = [
+        origin.strip().rstrip("/")
+        for origin in _configured_cors.split(",")
+        if origin.strip()
+    ]
+else:
+    # In production trust only the configured frontend. Local development gets
+    # its Vite origin; never silently trust localhost in production.
+    CORS_ORIGINS = [FRONTEND_URL] if APP_ENV == "production" else [
         "http://localhost:5173",
-    ).split(",")
-    if origin.strip()
-]
+        "http://127.0.0.1:5173",
+    ]
+
+if APP_ENV == "production" and any(
+    origin.startswith(("http://localhost", "http://127.0.0.1"))
+    for origin in CORS_ORIGINS
+):
+    raise EnvironmentError("CORS_ORIGINS must not include localhost in production.")
 
 # Rate limits: (max_calls, window_seconds). These are per-process limits.
 LOGIN_FAIL_LIMIT = (5, 15 * 60)

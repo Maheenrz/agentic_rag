@@ -255,7 +255,6 @@ def _policy_gate(
             ip=ip,
             detail={
                 "rules": [f.rule for f in flags],
-                "question": body.question[:200],
             },
         )
 
@@ -266,7 +265,6 @@ def _policy_gate(
             ip=ip,
             detail={
                 "reason": reason,
-                "question": body.question[:200],
             },
         )
         return POLICY_BLOCK_MESSAGE, reason

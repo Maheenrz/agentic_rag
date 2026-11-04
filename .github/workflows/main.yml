@@ -1,11 +1,9 @@
-
 name: Build and Publish Backend Image
 
 on:
   push:
     branches:
       - main
-      - auth-refactor-review
     paths:
       - "backend/**"
       - ".github/workflows/main.yml"
@@ -23,6 +21,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Python for syntax validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate Python syntax
+        run: python -m compileall -q backend/app backend/tests
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
