@@ -1,4 +1,3 @@
-
 """
 main.py
 -------
@@ -35,12 +34,6 @@ from app.services.cleanup_worker import worker as cleanup_worker
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # init_db() creates the pgvector extension and LangGraph checkpoint
-    # tables; it was previously only ever called manually (tests, or
-    # `python -m app.db`), so a fresh production database would otherwise
-    # never get them. Every app-specific table (collections, documents,
-    # cleanup_jobs, ...) is already created at import time by each store
-    # module's own _init_db(), so this only needs to cover what's left.
     try:
         init_db()
     except Exception:
@@ -64,25 +57,15 @@ async def validation_exception_handler(
     request: Request,
     exc: RequestValidationError,
 ):
-    """
-    Return validation errors without echoing submitted values.
-
-    FastAPI's default validation response may include an `input`
-    field containing passwords, tokens, or other submitted data.
-    """
+    """Return validation errors without echoing submitted values."""
     safe_errors = []
-
     for error in exc.errors():
         safe_errors.append({
             "type": error.get("type", "validation_error"),
             "loc": list(error.get("loc", [])),
             "msg": error.get("msg", "Invalid value"),
         })
-
-    return JSONResponse(
-        status_code=422,
-        content={"detail": safe_errors},
-    )
+    return JSONResponse(status_code=422, content={"detail": safe_errors})
 
 
 app.add_middleware(

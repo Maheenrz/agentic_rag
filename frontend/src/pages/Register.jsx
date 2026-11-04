@@ -63,7 +63,7 @@ export default function Register() {
         <form onSubmit={submit} className="space-y-4">
           <Label>
             Username
-            <Input className="mt-1.5" autoComplete="username" value={form.username} onChange={set('username')} />
+            <Input className="mt-1.5" autoComplete="username" name="username" required value={form.username} onChange={set('username')} />
             <span className="mt-1.5 block text-xs font-normal text-muted">3–64 characters: letters, digits, _ . @ -</span>
           </Label>
           <Label>
@@ -72,6 +72,8 @@ export default function Register() {
               className="mt-1.5"
               type="email"
               autoComplete="email"
+              name="email"
+              required
               value={form.email}
               onChange={set('email')}
             />
@@ -82,6 +84,8 @@ export default function Register() {
               className="mt-1.5"
               type="password"
               autoComplete="new-password"
+              name="password"
+              required
               value={form.password}
               onChange={set('password')}
             />
@@ -89,7 +93,7 @@ export default function Register() {
           </Label>
           <Label>
             Organisation name
-            <Input className="mt-1.5" placeholder="e.g. Acme Ltd" value={form.org} onChange={set('org')} />
+            <Input className="mt-1.5" placeholder="e.g. Acme Ltd" name="org_name" required value={form.org} onChange={set('org')} />
           </Label>
 
           <Button variant="primary" type="submit" disabled={busy} className="w-full py-3">

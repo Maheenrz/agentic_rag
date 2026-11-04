@@ -1,29 +1,10 @@
-
-export const API =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV ? 'http://localhost:8000' : '');
-
-export const getToken = () => {
-  try {
-    return localStorage.getItem('token');
-  } catch {
-    return null;
-  }
-};
-
-export const saveToken = (token) => {
-  try {
-    if (token) localStorage.setItem('token', token);
-    else localStorage.removeItem('token');
-  } catch {
-    throw new Error('Your browser could not save your session. Check your browser storage settings.');
-  }
-};
+// All browser API calls use the same-origin /api path. Vercel and Vite proxy
+// this path to FastAPI, so the browser can send an HttpOnly session cookie.
+export const API = '/api';
 
 export async function readJson(res) {
   const text = await res.text();
   if (!text) return null;
-
   try {
     return JSON.parse(text);
   } catch {
@@ -42,109 +23,46 @@ const FIELD_LABELS = {
 
 export function errorMessage(data, status) {
   const detail = data?.detail;
+  if (typeof detail === 'string') return detail;
 
   if (Array.isArray(detail)) {
     const messages = detail.map((item) => {
       const location = Array.isArray(item?.loc) ? item.loc : [];
-      const field = String(location[location.length - 1] || '');
-      const label = FIELD_LABELS[field];
-      const type = String(item?.type || '');
+      const field = location.length ? String(location[location.length - 1]) : '';
+      const label = FIELD_LABELS[field] || (field ? field.replaceAll('_', ' ') : 'field');
+      const type = item?.type || '';
 
-      if (type === 'missing' || item?.msg === 'Field required') {
-        return label
-          ? `Please enter your ${label}.`
-          : 'Please complete all required fields.';
-      }
-
-      if (field === 'email') {
+      // Never display FastAPI input/context values: they can contain passwords.
+      if (type === 'missing' || item?.msg === 'Field required') return `Please enter your ${label}.`;
+      if (field === 'email' && (type.includes('email') || /valid email/i.test(item?.msg || ''))) {
         return 'Please enter a valid email address.';
       }
-
-      if (field === 'password') {
-        return 'Please check your password and try again.';
+      if (field === 'password') return 'The password does not meet the requirements. Please check it and try again.';
+      if (item?.msg && !/value error|input should/i.test(item.msg)) {
+        return `${label.charAt(0).toUpperCase()}${label.slice(1)}: ${item.msg}`;
       }
-
-      return 'Some information is invalid. Please review the form.';
+      return 'Some information is missing or invalid. Please review the form.';
     });
-
     return [...new Set(messages)].join(' ');
   }
 
-  // These are endpoint-generated messages, not raw validation objects.
-  if (
-    typeof detail === 'string' &&
-    status >= 400 &&
-    status < 500
-  ) {
-    return detail;
-  }
-
-  const messages = {
-    400: 'The request could not be completed. Please check your details.',
-    401: 'Those sign-in details were not recognised.',
-    403: 'You do not have permission to do that.',
-    404: 'The requested item could not be found.',
-    409: 'That account or item already exists.',
-    422: 'Some information is missing or invalid. Please review the form.',
-    429: 'Too many requests. Please wait a moment and try again.',
-  };
-
-  if (messages[status]) return messages[status];
-
-  if (status >= 500) {
-    return 'Something went wrong on the server. Please try again later.';
-  }
-
-  return 'Something went wrong. Please try again.';
+  if (status === 400) return 'The request could not be completed. Please check your details.';
+  if (status === 401) return 'Your session may have expired. Please sign in again.';
+  if (status === 403) return 'You do not have permission to do that.';
+  if (status === 404) return 'The requested item could not be found.';
+  if (status === 409) return 'That account or item already exists.';
+  if (status === 422) return 'Some information is missing or invalid. Please review the form.';
+  if (status >= 500) return 'The server encountered a problem. Please try again shortly.';
+  return `Request failed (${status}). Please try again.`;
 }
 
-function networkError() {
-  return new Error(
-    'We could not connect to the service. Check your internet connection and try again.'
-  );
-}
-
-async function request(path, options = {}) {
-  try {
-    return await fetch(`${API}${path}`, options);
-  } catch (error) {
-    if (error?.name === 'AbortError') throw error;
-    throw networkError();
-  }
-}
-
-function handleExpiredSession(path, response, token) {
-  if (
-    response.status === 401 &&
-    token &&
-    !path.startsWith('/auth/login') &&
-    !path.startsWith('/auth/register')
-  ) {
-    saveToken(null);
-    window.dispatchEvent(new Event('auth:expired'));
-    return true;
-  }
-
-  return false;
-}
-
-export async function api(
-  path,
-  {
-    method = 'GET',
-    body,
-    form,
-    raw = false,
-    signal,
-  } = {}
-) {
-  const token = getToken();
+/**
+ * api('/path', { method, body, form, raw })
+ * Authentication is cookie-based. The browser sends the HttpOnly cookie;
+ * JavaScript never reads or stores the JWT.
+ */
+export async function api(path, { method = 'GET', body, form, raw = false, signal } = {}) {
   const headers = {};
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
   let payload;
 
   if (form) {
@@ -154,204 +72,96 @@ export async function api(
     payload = JSON.stringify(body);
   }
 
-  const res = await request(path, {
-    method,
-    headers,
-    body: payload,
-    signal,
-  });
+  let res;
+  try {
+    res = await fetch(API + path, {
+      method,
+      headers,
+      body: payload,
+      credentials: 'include',
+      signal,
+    });
+  } catch {
+    throw new Error('Cannot reach the server. Please check your connection and try again.');
+  }
 
-  if (handleExpiredSession(path, res, token)) {
+  const isAuthRequest = path.startsWith('/auth/login') || path.startsWith('/auth/logout');
+  if (res.status === 401 && !isAuthRequest) {
+    window.dispatchEvent(new Event('auth:expired'));
     throw new Error('Your session expired. Please sign in again.');
   }
 
   if (raw) return res;
-
-  const data = await readJson(res).catch(() => null);
-
-  if (!res.ok) {
-    throw new Error(errorMessage(data, res.status));
-  }
-
+  const data = await readJson(res);
+  if (!res.ok) throw new Error(errorMessage(data, res.status));
   return data;
 }
 
-/**
- * Consume the application's newline-delimited JSON stream.
- * Supported events: trace, reset, token, final, error.
- */
-async function consumeEventStream(response, onEvent, signal) {
-  if (!response.body) {
-    throw new Error('The server did not provide a response stream.');
-  }
+/** Streams a chat answer. The backend sends newline-separated JSON events. */
+export async function streamChat(threadId, body, onEvent) {
+  const res = await api(`/threads/${threadId}/chat/stream`, { method: 'POST', body, raw: true });
+  if (!res.ok) throw new Error(errorMessage(await readJson(res), res.status));
 
-  const reader = response.body.getReader();
+  const reader = res.body.getReader();
   const decoder = new TextDecoder();
-
   let buffer = '';
-  let receivedFinal = false;
+  const handle = (line) => { if (line.trim()) onEvent(JSON.parse(line)); };
 
-  function handleLine(line) {
-    const trimmed = line.trim();
-    if (!trimmed) return;
-
-    let event;
-
-    try {
-      event = JSON.parse(trimmed);
-    } catch {
-      onEvent({
-        type: 'warning',
-        message: 'Part of the response could not be read.',
-      });
-      return;
-    }
-
-    if (
-      !event ||
-      typeof event !== 'object' ||
-      typeof event.type !== 'string'
-    ) {
-      return;
-    }
-
-    if (event.type === 'final') {
-      receivedFinal = true;
-    }
-
-    if (event.type === 'error') {
-      throw new Error(
-        typeof event.detail === 'string'
-          ? event.detail
-          : 'The assistant could not complete this response.'
-      );
-    }
-
-    onEvent(event);
-  }
-
-  try {
-    while (true) {
-      if (signal?.aborted) {
-        throw new DOMException(
-          'The request was cancelled.',
-          'AbortError'
-        );
-      }
-
-      const { value, done } = await reader.read();
-
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-
-      let index;
-
-      while ((index = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, index);
-        buffer = buffer.slice(index + 1);
-        handleLine(line);
-      }
-    }
-
-    buffer += decoder.decode();
-
-    if (buffer.trim()) {
-      handleLine(buffer);
-    }
-
-    if (!receivedFinal) {
-      throw new Error(
-        'The connection ended before the answer was complete. Please try again.'
-      );
-    }
-  } finally {
-    try {
-      await reader.cancel();
-    } catch {
-      // The stream may already have closed.
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buffer.indexOf('\n')) >= 0) {
+      handle(buffer.slice(0, idx));
+      buffer = buffer.slice(idx + 1);
     }
   }
-}
-
-export async function streamChat(
-  threadId,
-  body,
-  onEvent,
-  signal
-) {
-  const res = await api(
-    `/threads/${encodeURIComponent(threadId)}/chat/stream`,
-    {
-      method: 'POST',
-      body,
-      raw: true,
-      signal,
-    }
-  );
-
-  if (!res.ok) {
-    const data = await readJson(res).catch(() => null);
-    throw new Error(errorMessage(data, res.status));
-  }
-
-  return consumeEventStream(res, onEvent, signal);
+  handle(buffer + decoder.decode());
 }
 
 export async function guestUpload(files) {
   const form = new FormData();
-
-  for (const file of files) {
-    form.append('files', file);
-  }
-
-  const res = await request('/chat/guest/upload', {
-    method: 'POST',
-    body: form,
-  });
-
-  const data = await readJson(res).catch(() => null);
-
-  if (!res.ok) {
-    throw new Error(errorMessage(data, res.status));
-  }
-
-  return data;
+  for (const file of files) form.append('files', file);
+  const res = await fetch(API + '/chat/guest/upload', { method: 'POST', body: form, credentials: 'include' });
+  if (!res.ok) throw new Error(errorMessage(await readJson(res).catch(() => null), res.status));
+  return readJson(res);
 }
 
-export async function guestStreamChat(
-  collectionId,
-  question,
-  onEvent,
-  signal
-) {
-  const res = await request('/chat/guest/stream', {
+export async function guestStreamChat(collectionId, question, onEvent, signal) {
+  const res = await fetch(API + '/chat/guest/stream', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      collection_id: collectionId,
-      question,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ collection_id: collectionId, question }),
+    credentials: 'include',
     signal,
   });
+  if (!res.ok) throw new Error(errorMessage(await readJson(res).catch(() => null), res.status));
 
-  if (!res.ok) {
-    const data = await readJson(res).catch(() => null);
-    throw new Error(errorMessage(data, res.status));
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const handle = (line) => { if (line.trim()) onEvent(JSON.parse(line)); };
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buffer.indexOf('\n')) >= 0) {
+        handle(buffer.slice(0, idx));
+        buffer = buffer.slice(idx + 1);
+      }
+    }
+    handle(buffer + decoder.decode());
+  } finally {
+    reader.cancel().catch(() => {});
   }
-
-  return consumeEventStream(res, onEvent, signal);
 }
 
 export function guestRelease(collectionId) {
-  if (!collectionId) return Promise.resolve();
-
-  return request(
-    `/chat/guest/collection/${encodeURIComponent(collectionId)}`,
-    { method: 'DELETE' }
-  ).catch(() => {
-    // Best effort. The backend also deletes guest data after its TTL.
-  });
+  return fetch(`${API}/chat/guest/collection/${encodeURIComponent(collectionId)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  }).catch(() => {});
 }
