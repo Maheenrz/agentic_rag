@@ -4,6 +4,7 @@ name: Build and Publish Backend Image
 on:
   push:
     branches:
+      - main
       - auth-refactor-review
     paths:
       - "backend/**"
