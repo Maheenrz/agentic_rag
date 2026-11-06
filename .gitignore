@@ -22,3 +22,9 @@ results/
 *.db
 chroma_store/
 eval_chroma/
+
+# Local backup files
+*.bak
+*.backup
+*.bak.*
+*.backup.*

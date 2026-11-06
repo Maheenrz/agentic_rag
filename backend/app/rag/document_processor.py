@@ -661,6 +661,103 @@ class HybridOrgRetriever:
         )
         return merged
 
+    def invoke_comparison(self, query: str) -> list[Document]:
+        """Retrieve evidence independently from every active authorized document."""
+        if not self.collection_ids:
+            return []
+
+        active_ids = set(
+            active_document_ids(self.collection_ids, org_id=self.org_id)
+        )
+        if not active_ids:
+            return []
+
+        candidates = []
+
+        # Vector search is scoped to one active document at a time.
+        for doc_id in sorted(active_ids):
+            hits = get_org_store().similarity_search(
+                query,
+                k=2,
+                filter={
+                    "org_id": self.org_id,
+                    "collection_id": {"$in": self.collection_ids},
+                    "doc_id": doc_id,
+                },
+            )
+            candidates.extend(
+                doc for doc in hits
+                if doc.metadata.get("doc_id") == doc_id
+                and doc.metadata.get("org_id") == self.org_id
+                and doc.metadata.get("collection_id") in self.collection_ids
+            )
+
+        # Also collect keyword matches independently for every document.
+        try:
+            docs, index = _keyword_index(self.org_id, self.collection_ids)
+
+            docs = [
+                doc for doc in docs
+                if doc.metadata.get("doc_id") in active_ids
+                and doc.metadata.get("org_id") == self.org_id
+                and doc.metadata.get("collection_id") in self.collection_ids
+            ]
+
+            if docs and index is not None:
+                # Rebuild scores against the filtered corpus so indices align.
+                tokenized = [_tokenize(doc.page_content) for doc in docs]
+                bm25 = BM25Okapi(tokenized) if any(tokenized) else None
+
+                if bm25 is not None:
+                    scores = bm25.get_scores(_tokenize(query))
+                    by_document = {}
+
+                    for i, doc in enumerate(docs):
+                        by_document.setdefault(
+                            doc.metadata.get("doc_id"), []
+                        ).append((scores[i], doc))
+
+                    for document_hits in by_document.values():
+                        document_hits.sort(
+                            key=lambda item: item[0], reverse=True
+                        )
+                        candidates.extend(
+                            doc for score, doc in document_hits[:2]
+                            if score > 0
+                        )
+        except Exception:
+            logger.exception(
+                "Comparison keyword retrieval failed; retaining vector hits"
+            )
+
+        # Recheck active status after retrieval to respect document lifecycle.
+        still_active = set(
+            active_document_ids(self.collection_ids, org_id=self.org_id)
+        )
+
+        unique = []
+        seen = set()
+
+        for doc in candidates:
+            metadata = doc.metadata
+            doc_id = metadata.get("doc_id")
+            key = (doc_id, metadata.get("page"), doc.page_content)
+
+            if (
+                doc_id in still_active
+                and metadata.get("org_id") == self.org_id
+                and metadata.get("collection_id") in self.collection_ids
+                and key not in seen
+            ):
+                seen.add(key)
+                unique.append(doc)
+
+        logger.info(
+            "Comparison retrieval: %d active documents, %d candidate chunks",
+            len(still_active),
+            len(unique),
+        )
+        return unique
 
 def build_org_retriever(
     org_id: str,
