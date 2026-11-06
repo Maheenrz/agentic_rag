@@ -49,7 +49,7 @@ function BootSplash() {
   return (
     <div className="flex h-screen items-center justify-center">
       <div className="glass animate-fade-up rounded-2xl px-8 py-6 font-display text-3xl text-ink">
-        Docs Assistant
+        Nexmind
       </div>
     </div>
   );

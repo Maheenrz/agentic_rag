@@ -237,7 +237,7 @@ export default function GuestChat({ open, onClose, question }) {
 
           <div className="flex-1">
             <div className="font-display text-xl leading-none">
-              Try Docs Assistant
+              Try Nexmind
             </div>
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted">
               <ShieldCheck size={12} />

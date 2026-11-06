@@ -28,7 +28,7 @@ export default function Navbar() {
           <span className="grid h-8 w-8 place-items-center rounded-xl bg-accent text-canvas">
             <Sparkles size={16} strokeWidth={2.2} />
           </span>
-          <span className="font-display text-xl leading-none">Docs Assistant</span>
+          <span className="font-display text-xl leading-none">Nexmind</span>
         </Link>
 
         {/* Center nav */}

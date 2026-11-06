@@ -175,7 +175,7 @@ export default function LandingPage() {
                 <span className="grid h-9 w-9 place-items-center rounded-xl bg-white text-[color:var(--color-blue-deep)]">
                   <ShieldCheck size={18} strokeWidth={2.1} />
                 </span>
-                <span className="font-display text-3xl leading-none text-white">Docs Assistant</span>
+                <span className="font-display text-3xl leading-none text-white">Nexmind</span>
               </div>
               <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/70">
                 Private document Q&amp;A. Answers come only from files each person is allowed to read — with the exact sentence they came from.
@@ -203,7 +203,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-white/15 pt-6 text-xs text-white/60 md:flex-row md:items-center">
-            <span>© {new Date().getFullYear()} Docs Assistant · Private by default</span>
+            <span>© {new Date().getFullYear()} Nexmind · Private by default</span>
             <span>Built for teams who care who can see what.</span>
           </div>
         </footer>

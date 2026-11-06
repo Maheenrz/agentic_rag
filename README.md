@@ -1,7 +1,7 @@
 
 <div align="center">
 
-# Private Docs Assistant
+# NexMind
 
 ### A secure, citation-first RAG assistant for organisational knowledge.
 
@@ -22,13 +22,12 @@ Ask questions across private documents. Get grounded answers with source referen
 
 ## Overview
 
-Private Docs Assistant is a multi-user document question-answering application built around one principle: **answers should be traceable to the documents that support them.**
+Nexmind is a multi-user document question-answering application built around one principle: **answers should be traceable to the documents that support them.**
 
 Organisations can upload policies, handbooks, reports, and spreadsheets into access-controlled collections. Staff can ask questions in natural language and receive an answer with source references and an exact supporting passage. If the available material does not support an answer, the assistant is designed to say so instead of filling the gap with a guess.
 
 The project combines hybrid retrieval, reranking, a graph-based answer workflow, document-level access control, and layered input/output guardrails. It also includes a guest experience for asking a small number of questions about a visitor's own uploaded document.
 
-> **Project status:** The project has Vercel and Azure deployment configuration. This source audit does not verify the currently deployed revision or live cloud health. Historical local evaluation results are reported below with their original scope.
 
 ## Highlights
 
@@ -333,14 +332,6 @@ Configure secrets and database connection settings through the hosting platform'
 - Authentication uses an HttpOnly cookie; browser JavaScript does not read or store the JWT. Theme preference is stored locally in the browser.
 - Load, concurrency, and large-corpus performance have not been comprehensively benchmarked.
 
-## Roadmap
-
-- [x] Configure the API and frontend deployment targets; verify the deployed revision and production smoke tests after each release.
-- [ ] Add shared rate limiting and durable guest-session lifecycle state for multi-instance hosting.
-- [ ] Expand evaluation coverage across DOCX, XLSX, multilingual documents, and larger corpora.
-- [ ] Add repeated and independently authored prompt-injection evaluations.
-- [ ] Review token storage and session-hardening options for production.
-- [ ] Add load and concurrency benchmarks.
 
 ## Design goals
 
@@ -352,6 +343,6 @@ The emphasis is on **traceability, access control, defensive design, and honest 
 
 <div align="center">
 
-**Private Docs Assistant** · Built with React, FastAPI, LangGraph, and PostgreSQL.
+**Nexmind** · Built with React, FastAPI, LangGraph, and PostgreSQL.
 
 </div>

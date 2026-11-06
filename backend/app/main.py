@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
         await cleanup_worker.stop()
 
 
-app = FastAPI(title="Private Docs Assistant API", lifespan=lifespan)
+app = FastAPI(title="Nexmind API", lifespan=lifespan)
 
 
 @app.exception_handler(RequestValidationError)
