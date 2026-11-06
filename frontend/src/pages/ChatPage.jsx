@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MessageBubble from '../components/MessageBubble';
@@ -30,6 +29,7 @@ export default function ChatPage() {
     let active = true;
 
     async function loadMessages() {
+      // Do not overwrite the local stream while it is in progress.
       if (streaming.current) return;
 
       if (!threadId) {
@@ -47,7 +47,7 @@ export default function ChatPage() {
           `/threads/${encodeURIComponent(threadId)}/messages`
         );
 
-        if (active) {
+        if (active && currentId.current === threadId && !streaming.current) {
           setMessages(Array.isArray(result) ? result : []);
         }
       } catch (err) {
@@ -73,10 +73,9 @@ export default function ChatPage() {
 
     return () => {
       if (leaving && messageCount.current) {
-        api(
-          `/threads/${encodeURIComponent(leaving)}/finalize`,
-          { method: 'POST' }
-        ).catch(() => {});
+        api(`/threads/${encodeURIComponent(leaving)}/finalize`, {
+          method: 'POST',
+        }).catch(() => {});
       }
     };
   }, [threadId]);
@@ -91,7 +90,6 @@ export default function ChatPage() {
 
       const next = [...current];
       const lastIndex = next.length - 1;
-
       next[lastIndex] = fn(next[lastIndex]);
 
       return next;
@@ -124,7 +122,9 @@ export default function ChatPage() {
           throw new Error('The server did not create a conversation.');
         }
 
-        navigate(`/chat/${id}`);
+        // Keep the current local conversation while the URL changes.
+        currentId.current = id;
+        navigate(`/chat/${encodeURIComponent(id)}`);
       }
 
       setMessages((current) => [
@@ -165,12 +165,14 @@ export default function ChatPage() {
           } else if (event.type === 'warning') {
             patchLast((message) => ({
               ...message,
-              warning: event.message || 'Part of the response could not be read.',
+              warning:
+                event.message ||
+                'Part of the response could not be read.',
             }));
           } else if (event.type === 'final') {
             patchLast((message) => ({
               ...message,
-              content: event.answer || '',
+              content: event.answer || message.content || '',
               sources: event.sources || [],
               trace: event.trace || message.trace || [],
               pending: false,
@@ -197,6 +199,7 @@ export default function ChatPage() {
           : 'The answer could not be generated. Please try again.',
       }));
     } finally {
+      // Finish local streaming before refreshing server-side data.
       streaming.current = false;
       busyRef.current = false;
       setBusy(false);
@@ -206,9 +209,69 @@ export default function ChatPage() {
       if (id && currentId.current === id) {
         api(`/threads/${encodeURIComponent(id)}/messages`)
           .then((result) => {
-            if (currentId.current === id) {
-              setMessages(Array.isArray(result) ? result : []);
+            if (
+              currentId.current !== id ||
+              !Array.isArray(result) ||
+              result.length === 0
+            ) {
+              return;
             }
+
+            setMessages((current) => {
+              // A newer stream may have started while this request was running.
+              if (streaming.current) return current;
+
+              const localAssistant = [...current]
+                .reverse()
+                .find(
+                  (message) =>
+                    message.role === 'assistant' && message.content
+                );
+
+              const savedAssistant = [...result]
+                .reverse()
+                .find((message) => message.role === 'assistant');
+
+              // Keep the streamed answer if history is stale or incomplete.
+              if (
+                localAssistant &&
+                savedAssistant &&
+                (savedAssistant.content || '').length <
+                  localAssistant.content.length
+              ) {
+                const merged = [...result];
+                const savedIndex = merged.lastIndexOf(savedAssistant);
+
+                merged[savedIndex] = {
+                  ...localAssistant,
+                  ...savedAssistant,
+                  content: localAssistant.content,
+                  sources:
+                    savedAssistant.sources?.length
+                      ? savedAssistant.sources
+                      : localAssistant.sources || [],
+                  trace:
+                    savedAssistant.trace?.length
+                      ? savedAssistant.trace
+                      : localAssistant.trace || [],
+                  pending: false,
+                };
+
+                return merged;
+              }
+
+              // Do not discard a streamed answer if the server returned
+              // a history that has not yet saved the assistant message.
+              if (
+                localAssistant &&
+                !savedAssistant &&
+                localAssistant.content
+              ) {
+                return current;
+              }
+
+              return result;
+            });
           })
           .catch(() => {});
       }
@@ -219,7 +282,8 @@ export default function ChatPage() {
     if (!threadId || !message?.id) return;
 
     const url =
-      `/threads/${encodeURIComponent(threadId)}/messages/${encodeURIComponent(message.id)}/feedback`;
+      `/threads/${encodeURIComponent(threadId)}/messages/` +
+      `${encodeURIComponent(message.id)}/feedback`;
 
     try {
       if (rating === 'clear') {
@@ -235,16 +299,22 @@ export default function ChatPage() {
         `/threads/${encodeURIComponent(threadId)}/messages`
       );
 
-      setMessages(Array.isArray(result) ? result : []);
+      if (Array.isArray(result)) {
+        setMessages(result);
+      }
     } catch (err) {
       setError(err.message);
     }
   }
 
-  const current = threads.find((thread) => thread.thread_id === threadId);
+  const current = threads.find(
+    (thread) => thread.thread_id === threadId
+  );
 
   const scope = selected.length
-    ? `Searching ${selected.length} selected collection${selected.length > 1 ? 's' : ''}`
+    ? `Searching ${selected.length} selected collection${
+        selected.length > 1 ? 's' : ''
+      }`
     : 'Searching every collection you can access';
 
   return (
@@ -260,7 +330,9 @@ export default function ChatPage() {
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-8">
         {loadingMessages && (
-          <p className="m-auto text-sm text-muted">Loading conversation…</p>
+          <p className="m-auto text-sm text-muted">
+            Loading conversation…
+          </p>
         )}
 
         {!loadingMessages && messages.length === 0 && (
@@ -298,10 +370,7 @@ export default function ChatPage() {
 
         {messages.map((message, index) => (
           <div key={message.id ?? `pending-${index}`}>
-            <MessageBubble
-              message={message}
-              onRate={rate}
-            />
+            <MessageBubble message={message} onRate={rate} />
 
             {message.warning && (
               <p className="mt-2 text-xs text-danger">

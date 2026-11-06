@@ -1,6 +1,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Send,
   Sparkles,
@@ -20,6 +22,109 @@ import {
 
 const ACCEPT = '.pdf,.txt,.md,.docx,.html,.htm,.xlsx';
 const GUEST_QUESTION_CAP = 2;
+
+function normalizeMarkdown(content) {
+  return String(content || '')
+    .replace(/\\([*_`#])/g, '$1')
+    .replace(/\r\n?/g, '\n');
+}
+
+function MarkdownAnswer({ content }) {
+  return (
+    <div className="break-words text-sm leading-relaxed text-ink">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => (
+            <h1 className="mb-3 mt-5 text-2xl font-semibold first:mt-0">
+              {children}
+            </h1>
+          ),
+          h2: ({ children }) => (
+            <h2 className="mb-2 mt-5 text-xl font-semibold first:mt-0">
+              {children}
+            </h2>
+          ),
+          h3: ({ children }) => (
+            <h3 className="mb-2 mt-4 text-lg font-semibold first:mt-0">
+              {children}
+            </h3>
+          ),
+          p: ({ children }) => (
+            <p className="mb-3 last:mb-0">{children}</p>
+          ),
+          ul: ({ children }) => (
+            <ul className="mb-3 list-disc space-y-1 pl-6 last:mb-0">
+              {children}
+            </ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="mb-3 list-decimal space-y-1 pl-6 last:mb-0">
+              {children}
+            </ol>
+          ),
+          li: ({ children }) => <li>{children}</li>,
+          strong: ({ children }) => (
+            <strong className="font-semibold">{children}</strong>
+          ),
+          em: ({ children }) => <em>{children}</em>,
+          blockquote: ({ children }) => (
+            <blockquote className="my-3 border-l-2 border-accent pl-4 text-muted">
+              {children}
+            </blockquote>
+          ),
+          a: ({ href, children }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="text-accent underline underline-offset-2"
+            >
+              {children}
+            </a>
+          ),
+          code: ({ className, children, ...props }) => (
+            <code
+              className={
+                className
+                  ? 'block overflow-x-auto rounded-lg bg-surface-2 p-3 text-xs'
+                  : 'rounded bg-surface-2 px-1 py-0.5 text-xs'
+              }
+              {...props}
+            >
+              {children}
+            </code>
+          ),
+          pre: ({ children }) => (
+            <pre className="my-3 overflow-x-auto rounded-xl border border-border bg-surface-2 p-3">
+              {children}
+            </pre>
+          ),
+          table: ({ children }) => (
+            <div className="my-3 overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs">
+                {children}
+              </table>
+            </div>
+          ),
+          th: ({ children }) => (
+            <th className="border border-border px-3 py-2 font-semibold">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="border border-border px-3 py-2 align-top">
+              {children}
+            </td>
+          ),
+          hr: () => <hr className="my-4 border-border" />,
+        }}
+      >
+        {normalizeMarkdown(content)}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 export default function GuestChat({ open, onClose, question }) {
   const [phase, setPhase] = useState('upload');
@@ -180,12 +285,14 @@ export default function GuestChat({ open, onClose, question }) {
           } else if (event.type === 'warning') {
             patchLast((message) => ({
               ...message,
-              warning: event.message || 'Part of the response could not be read.',
+              warning:
+                event.message ||
+                'Part of the response could not be read.',
             }));
           } else if (event.type === 'final') {
             patchLast((message) => ({
               ...message,
-              content: event.answer || '',
+              content: event.answer || message.content || '',
               sources: event.sources || [],
               trace: event.trace || message.trace || [],
               pending: false,
@@ -358,14 +465,13 @@ export default function GuestChat({ open, onClose, question }) {
                     </div>
                   ) : (
                     <div className="max-w-[85%] space-y-3">
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
-                        {message.content ||
-                          (message.pending ? (
-                            <span className="animate-pulse-soft text-muted">
-                              Thinking…
-                            </span>
-                          ) : '')}
-                      </div>
+                      {message.content ? (
+                        <MarkdownAnswer content={message.content} />
+                      ) : message.pending ? (
+                        <span className="animate-pulse-soft text-sm text-muted">
+                          Thinking…
+                        </span>
+                      ) : null}
 
                       {message.warning && (
                         <p className="text-xs text-danger">
@@ -383,7 +489,10 @@ export default function GuestChat({ open, onClose, question }) {
                               <div className="text-xs text-muted">
                                 {source.source}
                                 {source.location
-                                  ? ` · ${source.location.split(', ').slice(1).join(', ')}`
+                                  ? ` · ${source.location
+                                      .split(', ')
+                                      .slice(1)
+                                      .join(', ')}`
                                   : ''}
                               </div>
 
@@ -430,7 +539,6 @@ export default function GuestChat({ open, onClose, question }) {
                       >
                         Create an organisation
                       </Link>
-
                       <Link
                         to="/login"
                         className="rounded-full border border-border px-3.5 py-1.5 text-xs text-ink transition hover:bg-surface-2"
@@ -501,7 +609,6 @@ export default function GuestChat({ open, onClose, question }) {
                     >
                       Create an organisation
                     </Link>
-
                     <Link
                       to="/login"
                       className="rounded-full border border-border px-5 py-2.5 text-sm text-ink transition hover:bg-surface-2"
