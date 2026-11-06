@@ -749,7 +749,7 @@ _pool = ConnectionPool(
     conninfo=DATABASE_URL,
     max_size=10,
     open=True,
-    kwargs={"autocommit": True, "prepare_threshold": 0},
+    kwargs={"autocommit": True, "prepare_threshold": None},
     # --- add these two lines ---
     check=ConnectionPool.check_connection,      # validate every conn before handing it out
     max_idle=120,                                # retire idle conns before the pooler kills them
