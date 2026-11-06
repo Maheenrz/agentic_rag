@@ -188,7 +188,7 @@ export default function CommandPalette() {
                         <span className="flex items-center gap-1"><CornerDownLeft size={12} /> open</span>
                         <span className="flex items-center gap-1"><Kbd>esc</Kbd> close</span>
                     </div>
-                    <span>Docs Assistant</span>
+                    <span>Nexmind</span>
                 </div>
             </div>
         </div>

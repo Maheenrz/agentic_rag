@@ -60,10 +60,10 @@ def send_invite_email(
 
     _send(
         to=to,
-        subject=f"You've been invited to {org_name} on Docs Assistant",
+        subject=f"You've been invited to {org_name} on Nexmind",
         body=(
             f"Hi {username},\n\n"
-            f"You've been invited to join {org_name} on Docs Assistant.\n"
+            f"You've been invited to join {org_name} on Nexmind.\n"
             f"Click the link below to set your password. "
             f"It expires in 7 days.\n\n"
             f"{link}\n\n"
@@ -77,10 +77,10 @@ def send_reset_email(to: str, username: str, token: str) -> None:
 
     _send(
         to=to,
-        subject="Reset your Docs Assistant password",
+        subject="Reset your Nexmind password",
         body=(
             f"Hi {username},\n\n"
-            "Someone asked to reset your Docs Assistant password. "
+            "Someone asked to reset your Nexmind password. "
             "If it was you, click below.\n"
             "The link expires in 1 hour.\n\n"
             f"{link}\n\n"
@@ -92,7 +92,7 @@ def send_reset_email(to: str, username: str, token: str) -> None:
 def send_password_changed_email(to: str, username: str) -> None:
     _send(
         to=to,
-        subject="Your Docs Assistant password was changed",
+        subject="Your Nexmind password was changed",
         body=(
             f"Hi {username},\n\n"
             "Your password was just changed. If this wasn't you, "
